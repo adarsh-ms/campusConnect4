@@ -38,3 +38,26 @@ class mainMenu(object):
                   4. Quit ''')
 
         self.choice = input('\n Enter your choice : ') # To capture desired input
+        
+    def subMenu(self):
+        
+        if self.choice == 1 :
+            
+            self.signUp()
+        
+        elif self.choice == 2 :
+            
+            self.signIn()
+        
+        elif self.choice == 3 :
+            
+            self.adminSignIn()
+
+        elif self.choice == 4 :
+            
+            self.signIn()
+        
+        else :
+            
+            print("Sorry! System can't determine the request....")
+            self.welcomeScreen()
