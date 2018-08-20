@@ -17,27 +17,7 @@ class mainMenu(object):
         
         
         self.welcomeScreen()  # To display main menu at start
-    
-    
-    def welcomeScreen(self): # Function to display main menu & prompting user choice
         
-        self.clear() # clear console
-        
-        print("\n\n\n\t Welcome to banking services....... ") # welcome message
-        time.sleep(2) # sleep for 2 sec
-        
-        self.clear() # clear console
-        
-        ##Menu 
-        
-        print(''' \n\n\t  MENU 
-                  
-                  1. Sign Up (New Customer)
-                  2. Sign In (Existing Customer)
-                  3. Admin Sign In
-                  4. Quit ''')
-
-        self.choice = input('\n Enter your choice : ') # To capture desired input
         
     def subMenu(self): # Function to handle user input
         
@@ -60,9 +40,33 @@ class mainMenu(object):
         else :                 # Invalid choice 
             
             print("Sorry! System can't determine the request....")
-            self.welcomeScreen() 
+            self.welcomeScreen()
+    
+    
+    def welcomeScreen(self): # Function to display main menu & prompting user choice
         
+        self.clear() # clear console
         
+        print("\n\n\n\t Welcome to banking services....... ") # welcome message
+        time.sleep(2) # sleep for 2 sec
+        
+        self.clear() # clear console
+        
+        ##Menu 
+        
+        print(''' \n\n\t  MENU 
+                  
+                  1. Sign Up (New Customer)
+                  2. Sign In (Existing Customer)
+                  3. Admin Sign In
+                  4. Quit ''')
+
+        self.choice = int(input('\n Enter your choice : ')) # To capture desired input
+    
+        self.subMenu() # To interpret user choice & perform specific functions
+
+                            
+            
 if __name__ == '__main__':
 
     menuObject = mainMenu()
