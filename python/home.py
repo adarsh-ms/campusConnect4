@@ -18,6 +18,62 @@ class mainMenu(object):
         
         self.welcomeScreen()  # To display main menu at start
         
+    
+    def signUp(self): # Function for new user registration data collection
+        
+        print("\n Please fill the neccessary details below : ")
+    
+        print("\n Name : ")                                # Name of user ( fName & lName )
+        self.fName = input('\n\t First Name : ')
+        self.lName = input('\n\t Last Name : ')
+    
+        print("\n Address : ")                          # Address of user ( line 1 & 2, city, state, pincode )
+        self.line1 = input('\n\t Line 1 : ')
+        self.line2 = input('\n\t Line 2 : ')
+        self.city = input('\n\t City : ')
+        self.state = input('\n\t State : ')
+        self.pinCode = input('\n\t Pincode : ')
+        
+        def accountType():
+            
+            print("\n Choose your account type : "),         # Account type ( savings or current )
+            print("\n \t a. Savings Account [s]"),
+            print("\t b. Current Account [c]")
+            self.accntType = input('\n Enter your choice (s/c) : ')
+            
+            if self.accntType == 's' or self.accntType == 'S' :     # Prompt if savings account
+                
+                decision = input("\n Do you wish to make an initial deposit ? [y/n]")
+                if decision == 'y' or decision == 'Y' : # If chooses to pay
+                    
+                    self.desposit = input('\n Enter the amount to deposit : Rs. ')
+                
+                else :
+                    
+                    self.deposit = 0
+                
+            elif self.accntType == 'c' or self.accntType == 'C' :   # Prompt if current account
+                
+                    decision = input("\n Note : 'Current account' need a minimum balance of Rs. 5000. \n Do you wish to continue ? [y/n]")
+                    if decision == 'y' or decision == 'Y' : # If choice is to make the payment
+                        
+                        self.desposit = input('\n Enter the amount to deposit : Rs. ')    
+                    
+                    else :  # Prompt for changing the account type or cancel application
+                        
+                        decision = input("\n Do you wish to change account type or cancel the process ? [y/q]")
+                        if decision == 'y' or decision == 'Y' :
+                            
+                            accountType()
+                        
+                        else : # If choice is to cancel application
+                            
+                            print("\n Processing your request... Please wait.....")
+                            time.sleep(1)
+                            self.welcomeScreen()
+ 
+        accountType()
+    
         
     def subMenu(self): # Function to handle user input
         
