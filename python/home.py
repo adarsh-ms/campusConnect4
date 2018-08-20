@@ -16,10 +16,10 @@ class mainMenu(object):
             self.clear = lambda: os.system('cls')
         
         
-        self.welcomeScreen()
+        self.welcomeScreen()  # To display main menu at start
     
     
-    def welcomeScreen(self):
+    def welcomeScreen(self): # Function to display main menu & prompting user choice
         
         self.clear() # clear console
         
@@ -39,30 +39,30 @@ class mainMenu(object):
 
         self.choice = input('\n Enter your choice : ') # To capture desired input
         
-    def subMenu(self):
+    def subMenu(self): # Function to handle user input
         
-        if self.choice == 1 :
+        if self.choice == 1 :   # sign in
             
             self.signUp()
         
-        elif self.choice == 2 :
+        elif self.choice == 2 : # sign out
             
             self.signIn()
         
-        elif self.choice == 3 :
+        elif self.choice == 3 : # admin sign in
             
             self.adminSignIn()
 
-        elif self.choice == 4 :
+        elif self.choice == 4 : # quit
             
-            self.signIn()
+            self.quit()
         
-        else :
+        else :                 # Invalid choice 
             
             print("Sorry! System can't determine the request....")
-            self.welcomeScreen()
-            
-
+            self.welcomeScreen() 
+        
+        
 if __name__ == '__main__':
 
     menuObject = mainMenu()
