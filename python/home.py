@@ -61,3 +61,8 @@ class mainMenu(object):
             
             print("Sorry! System can't determine the request....")
             self.welcomeScreen()
+            
+
+if __name__ == '__main__':
+
+    menuObject = mainMenu()
