@@ -23,16 +23,22 @@ class mainMenu(object):
         
         print("\n Please fill the neccessary details below : ")
     
-        print("\n Name : ")                                # Name of user ( fName & lName )
-        self.fName = input('\n\t First Name : ')
-        self.lName = input('\n\t Last Name : ')
-    
-        print("\n Address : ")                          # Address of user ( line 1 & 2, city, state, pincode )
-        self.line1 = input('\n\t Line 1 : ')
-        self.line2 = input('\n\t Line 2 : ')
-        self.city = input('\n\t City : ')
-        self.state = input('\n\t State : ')
-        self.pinCode = input('\n\t Pincode : ')
+            
+        def userName():
+                
+            print("\n Name : ")                                # Name of user ( fName & lName )
+            self.fName = input('\n\t First Name : ')
+            self.lName = input('\n\t Last Name : ')
+        
+        def userAddress():
+                
+            print("\n Address : ")                          # Address of user ( line 1 & 2, city, state, pincode )
+            self.line1 = input('\n\t Line 1 : ')
+            self.line2 = input('\n\t Line 2 : ')
+            self.city = input('\n\t City : ')
+            self.state = input('\n\t State : ')
+            self.pinCode = input('\n\t Pincode : ')
+        
         
         def accountType():
             
@@ -72,6 +78,9 @@ class mainMenu(object):
                             time.sleep(1)
                             self.welcomeScreen()
  
+        userName()
+        userAddress()
+        
         accountType()
     
         
