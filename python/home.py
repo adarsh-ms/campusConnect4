@@ -30,7 +30,8 @@ class mainMenu(object):
         
         elif self.choice == 2 : # sign out
             
-            self.signIn()
+            signInMenu_Object = signInMenu()
+            signInMenu_Object.signIn()
         
         elif self.choice == 3 : # admin sign in
             
@@ -123,14 +124,14 @@ class signUpMenu(object) :
                         except ValueError: # In case of an invalid input
                             
                             clear()
-                            print("\n\n\t Sorry! System can't process your request.... Please enter a valid amount....")
+                            print("\n\n\n\t Sorry! System can't process your request.... \n\n\t Please enter a valid amount....")
                             time.sleep(2)
                             continue
                         
                         if self.desposit < 5000 :  # Comparing the deposited amount with min bal
                             
                             clear()
-                            print("\n\n\t Note : Current accounts must have a minimum balance of Rs.5000. Please try again.....")
+                            print("\n\n\t Note : Current accounts must have a minimum balance of Rs.5000.\n\n\t Please try again.....")
                             time.sleep(2)
                             continue
                         
@@ -182,7 +183,41 @@ class signUpMenu(object) :
             print("\n Creating user account...... This may take a moment......")
 
                             
-            
+class signInMenu(object):
+    
+    
+    def __init__(self):
+        
+        self.signInSubMenu()
+
+    
+    def signInSubMenu(self):
+        
+        clear() # clear console
+        
+        print("\n\n\n\t Welcome back....... ") # welcome message
+        time.sleep(2) # sleep for 2 sec
+        
+        clear() # clear console
+        
+        ##Sub-menu for signIn
+        
+        print(''' \n\n\t  MENU 
+                  
+                  1. Address Change
+                  2. Money Deposit
+                  3. Money Withdrawal
+                  4. Print Statement
+                  5. Transfer Money
+                  6. Account Closure
+                  7. Customer Logout ''')
+
+        self.signInChoice = int(input('\n Enter your choice : ')) # To capture desired input
+    
+        self.userChoice() # To interpret user choice & perform specific tasks
+
+    
+
 if __name__ == '__main__':
 
     menuObject = mainMenu()
