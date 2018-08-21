@@ -43,7 +43,7 @@ class mainMenu(object):
         
         else :                 # Invalid choice 
             
-            print("Sorry! System can't determine the request....")
+            print("\n Sorry! System can't determine the request....")
             self.welcomeScreen()
     
     
@@ -217,6 +217,41 @@ class signInMenu(object):
         self.userChoice() # To interpret user choice & perform specific tasks
 
     
+    def userChoice(self):
+        
+        if self.signInChoice == 1 :         # Address Change
+            
+            self.addressChange()
+
+        elif self.signInChoice == 2 :       # Money Deposit
+            
+            self.depositMoney()
+    
+        elif self.signInChoice == 3 :       # Money Withdrawal
+            
+            self.withDrawMoney()
+
+        elif self.signInChoice == 4 :       # Print Statement
+            
+            self.printStatement()
+
+        elif self.signInChoice == 5 :       # Transfer Money
+            
+            self.moneyTransfer()
+
+        elif self.signInChoice == 6 :       # Account Closure
+            
+            self.closeAccount()
+        
+        elif self.signInChoice == 7 :       # Customer Logout
+            
+            self.customerLogout()
+
+        else :
+            
+            print("\n Sorry! System can't determine the request....")
+            self.signInSubMenu()
+
 
 if __name__ == '__main__':
 
