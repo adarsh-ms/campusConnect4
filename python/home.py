@@ -114,7 +114,29 @@ class signUpMenu(object) :
                 decision = input("\n Note : 'Current account' need a minimum balance of Rs. 5000. \n Do you wish to continue ? [y/n]")
                 if decision == 'y' or decision == 'Y' : # If choice is to make the payment
                     
-                    self.desposit = int(input('\n Enter the amount to deposit : Rs. '))    
+                    while True :   # To check if entered amount is enough to create an account
+                        
+                        try:
+                            clear()
+                            self.desposit = int(input('\n Enter the amount to deposit : Rs. '))
+                            
+                        except ValueError: # In case of an invalid input
+                            
+                            clear()
+                            print("\n\n\t Sorry! System can't process your request.... Please enter a valid amount....")
+                            time.sleep(2)
+                            continue
+                        
+                        if self.desposit < 5000 :  # Comparing the deposited amount with min bal
+                            
+                            clear()
+                            print("\n\n\t Note : Current accounts must have a minimum balance of Rs.5000. Please try again.....")
+                            time.sleep(2)
+                            continue
+                        
+                        else :
+                            
+                            break    # To break the loop if condition is satisfied
                 
                 else :  # Prompt for changing the account type or cancel application
                     
@@ -127,7 +149,9 @@ class signUpMenu(object) :
                         
                         print("\n Processing your request... Please wait.....")
                         time.sleep(1)
-                        self.welcomeScreen()
+                        
+                        mainMenu_Object = mainMenu()
+                        mainMenu_Object.welcomeScreen()
             
             else : 
                 
