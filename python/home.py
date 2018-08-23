@@ -2,25 +2,69 @@ import os, time
 from sys import platform
 
 
-##To clear console according to the platform 
-        
-if platform == "linux" or platform == "linux2" or platform == "darwin":
- 
-    clear = lambda: os.system('clear')
-     
-elif platform == "win32":
-     
-    clear = lambda: os.system('cls')
-            
+import cx_Oracle
 
-class mainMenu(object):
+
+class configuration(object):          #For initial configuration of db & clear function
+    
     
     def __init__(self):
         
         
+        self.clearFunction()    #Initialising clear 
+        self.dbSetup()          #Initialising db for linux
+        
+        self.dbConnect()        #Connect to database
+        print(self.con.version.split('.'))
+
+          
+    def clearFunction(self):
+        
+        
+        ##To clear console according to the platform 
+        
+        if platform == "linux" or platform == "linux2" or platform == "darwin":
+         
+            self.clear = lambda: os.system('clear')
+             
+        elif platform == "win32":
+             
+            self.clear = lambda: os.system('cls')
+
+
+    def dbSetup(self):
+
+        ##To set environment variables for installed database 
+        
+        if platform == "linux" or platform == "linux2" or platform == "darwin":
+            
+            os.environ['ORACLE_HOME'] = '/u01/app/oracle/product/11.2.0/xe'
+            os.environ['LD_LIBRARY_PATH'] = '$ORACLE_HOME/lib'
+        
+            print(os.environ.get('ORACLE_HOME'))
+            print(os.environ.get('LD_LIBRARY_PATH'))
+            time.sleep(2)
+        
+    
+    def dbConnect(self):
+        
+        self.id = input('\n Enter your username for database : ')
+        self.passwd = input('\n Enter your password for database : ')
+        
+        self.con = cx_Oracle.connect('{0}/{1}'.format(self.id,self.passwd))   #To connect to database with user_name:$id & password:$passwd
+        
+    
+
+class mainMenu(configuration):
+    
+    def __init__(self):
+        
+        
+        super().__init__()     #Equivalent to super(mainMenu,self).__init__()
+        
         self.welcomeScreen()  # To display main menu at start
-    
-    
+             
+                
     def subMenu(self): # Function to handle user input
         
         if self.choice == 1 :   # sign in
@@ -49,12 +93,12 @@ class mainMenu(object):
     
     def welcomeScreen(self): # Function to display main menu & prompting user choice
         
-        clear() # clear console
+        self.clear() # clear console
         
         print("\n\n\n\t Welcome to banking services....... ") # welcome message
         time.sleep(2) # sleep for 2 sec
         
-        clear() # clear console
+        self.clear() # clear console
         
         ##Menu 
         
@@ -70,10 +114,12 @@ class mainMenu(object):
         self.subMenu() # To interpret user choice & perform specific functions
 
 
-class signUpMenu(object) :
+class signUpMenu(configuration) :
     
     
     def __init__(self):
+        
+        super().clearFunction()
         
         self.desposit = 0    # Initializing of deposit money
     
@@ -118,19 +164,19 @@ class signUpMenu(object) :
                     while True :   # To check if entered amount is enough to create an account
                         
                         try:
-                            clear()
+                            self.clear()
                             self.desposit = int(input('\n Enter the amount to deposit : Rs. '))
                             
                         except ValueError: # In case of an invalid input
                             
-                            clear()
+                            self.clear()
                             print("\n\n\n\t Sorry! System can't process your request.... \n\n\t Please enter a valid amount....")
                             time.sleep(2)
                             continue
                         
                         if self.desposit < 5000 :  # Comparing the deposited amount with min bal
                             
-                            clear()
+                            self.clear()
                             print("\n\n\t Note : Current accounts must have a minimum balance of Rs.5000.\n\n\t Please try again.....")
                             time.sleep(2)
                             continue
@@ -175,30 +221,32 @@ class signUpMenu(object) :
         
         if decision == 'y' or decision == 'Y' :
             
-            clear()
+            self.clear()
             print("\n Processing your request..... Please wait.....")
             time.sleep(2)
             
-            clear()
+            self.clear()
             print("\n Creating user account...... This may take a moment......")
 
                             
-class signInMenu(object):
+class signInMenu(configuration):
     
     
     def __init__(self):
         
+        super().clearFunction()
+        
         self.signInSubMenu()
-
+        
     
     def signInSubMenu(self):
         
-        clear() # clear console
+        self.clear() # clear console
         
         print("\n\n\n\t Welcome back....... ") # welcome message
         time.sleep(2) # sleep for 2 sec
         
-        clear() # clear console
+        self.clear() # clear console
         
         ##Sub-menu for signIn
         
@@ -251,8 +299,8 @@ class signInMenu(object):
             
             print("\n Sorry! System can't determine the request....")
             self.signInSubMenu()
-
-
+            
+            
 if __name__ == '__main__':
 
     menuObject = mainMenu()
