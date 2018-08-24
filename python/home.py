@@ -1,6 +1,6 @@
 import os, time
 from sys import platform
-
+import random
 
 import cx_Oracle
 
@@ -8,19 +8,17 @@ import cx_Oracle
 class configuration(object):          #For initial configuration of db & clear function
     
     
-    def __init__(self):
+    
+    def initializer(self):            #Replacement for constructor to avoid re-initialising the functions 
         
+        self.clearFunction()
+        self.dbSetup()
+        self.dbCredentials()
         
-        self.clearFunction()    #Initialising clear 
-        self.dbSetup()          #Initialising db for linux
-        
-        self.dbConnect()        #Connect to database
-        print(self.con.version.split('.'))
-
           
-    def clearFunction(self):
+    def clearFunction(self):    #Initialising clear
         
-        
+         
         ##To clear console according to the platform 
         
         if platform == "linux" or platform == "linux2" or platform == "darwin":
@@ -32,35 +30,90 @@ class configuration(object):          #For initial configuration of db & clear f
             self.clear = lambda: os.system('cls')
 
 
-    def dbSetup(self):
+    def dbSetup(self):          #Initialising db for linux
 
         ##To set environment variables for installed database 
         
         if platform == "linux" or platform == "linux2" or platform == "darwin":
             
             os.environ['ORACLE_HOME'] = '/u01/app/oracle/product/11.2.0/xe'
-            os.environ['LD_LIBRARY_PATH'] = '$ORACLE_HOME/lib'
+            os.environ['LD_LIBRARY_PATH'] = '/u01/app/oracle/product/11.2.0/xe/lib'
         
             print(os.environ.get('ORACLE_HOME'))
             print(os.environ.get('LD_LIBRARY_PATH'))
             time.sleep(2)
         
     
-    def dbConnect(self):
+    def dbCredentials(self):        #To prompt user for database login credentials
         
         self.id = input('\n Enter your username for database : ')
         self.passwd = input('\n Enter your password for database : ')
+        self.dbStart()
+    
+    
+    def dbStart(self):          #To connect to database
         
         self.con = cx_Oracle.connect('{0}/{1}'.format(self.id,self.passwd))   #To connect to database with user_name:$id & password:$passwd
+        self.cur = self.con.cursor()
         
     
+    def dbStop(self):
+        
+        self.con.close()
+    
+     
+    def createTable(self):          #To check if CUSTOMERS table already exits or not & if not, create the table
+        
+        
+        self.CUR.execute("SELECT tname FROM tab WHERE tname = 'CUSTOMERS'")
+        print(self.CUR.fetchall())
+        time.sleep(2)
+        
+        if self.CUR.fetchall() == "[]" :
+            
+   
+            
+            print("table created")
+            time.sleep(2)
+         
 
-class mainMenu(configuration):
+class TABLE_USERS (object):         #Table for storing aacount no,name,date created,balance,account type,address
+    
+    
+    def __init__(self,cur):
+
+        self.CUR = cur              #cur=con.cursor() from configuration class via child class
+        self.createTable()
+          
+        print("USERS")  
+    
+    
+    def insertIntoTableCustomers(self,accNo,line1,line2,city,state,zipCode):
+        
+        
+        self.accountNumber = accNo
+        self.addressLine1 = line1
+        self.addressLine2 = line2
+        self.city = city
+        self.state = state
+        self.zipCode = zipCode
+        
+        self.CUR.execute("""INSERT INTO customers VALUES (:accountNumber,
+                            ADDRESS_TABLE(ADDRESS_SUB_COLUMNS(:addressLine1, :addressLine2, :city, :state, :zip)""",
+                            (self.accountNumber,self.addressLine1,self.addressLine2,self.city,self.state,self.zip))
+        
+        
+
+class mainMenu(configuration,TABLE_USERS):
+    
     
     def __init__(self):
         
         
-        super().__init__()     #Equivalent to super(mainMenu,self).__init__()
+        super().initializer()       #To initialize functions in parent1 (configuration)         
+        
+        super().__init__(self.cur)  #Call to constructor in parent2 (TABLE_USERS) : passing cur from parent1
+        
         
         self.welcomeScreen()  # To display main menu at start
              
@@ -112,7 +165,8 @@ class mainMenu(configuration):
         self.choice = int(input('\n Enter your choice : ')) # To capture desired input
     
         self.subMenu() # To interpret user choice & perform specific functions
-
+        
+    
 
 class signUpMenu(configuration) :
     
@@ -227,6 +281,7 @@ class signUpMenu(configuration) :
             
             self.clear()
             print("\n Creating user account...... This may take a moment......")
+            
 
                             
 class signInMenu(configuration):
@@ -303,4 +358,5 @@ class signInMenu(configuration):
             
 if __name__ == '__main__':
 
-    menuObject = mainMenu()
+    
+    initialObject = configuration()
