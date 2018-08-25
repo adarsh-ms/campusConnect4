@@ -175,6 +175,16 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
             print(name)
             switchCases[name]()
         
+        
+        #To check if all required relations are configured
+        self.cur.execute("SELECT table_name FROM all_tables WHERE table_name IN ('CUSTOMERS','ACCOUNTS','CUSTOMER_PASSWORD','CLOSED_ACCOUNTS','TRANSACTIONS')")
+        
+        if len(self.cur.fetchall()) != 5 :
+            
+            
+            print("\n\tYour database is not correctly configured.Some relations are missing.\n\n\tPlease check your database configuration and try again.....")
+            exit()
+            
 
 class mainMenu(object):
     
