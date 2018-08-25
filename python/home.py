@@ -9,11 +9,12 @@ class configuration(object):          #For initial configuration of db & clear f
     
     
     
-    def initializer(self):            #Replacement for constructor to avoid re-initialising the functions 
+    def __init__(self): 
         
         self.clearFunction()
         self.dbSetup()
         self.dbCredentials()
+        self.launchMenu()
         
           
     def clearFunction(self):    #Initialising clear
@@ -75,6 +76,12 @@ class configuration(object):          #For initial configuration of db & clear f
             
             print("table created")
             time.sleep(2)
+    
+    
+    def launchMenu(self):
+        
+        welcomeMenu_Object = mainMenu(self)
+    
          
 
 class TABLE_USERS (object):         #Table for storing aacount no,name,date created,balance,account type,address
@@ -104,17 +111,13 @@ class TABLE_USERS (object):         #Table for storing aacount no,name,date crea
         
         
 
-class mainMenu(configuration,TABLE_USERS):
+class mainMenu(object):
     
     
-    def __init__(self):
+    def __init__(self,parent):
         
         
-        super().initializer()       #To initialize functions in parent1 (configuration)         
-        
-        super().__init__(self.cur)  #Call to constructor in parent2 (TABLE_USERS) : passing cur from parent1
-        
-        
+        self.PARENT = parent
         self.welcomeScreen()  # To display main menu at start
              
                 
@@ -122,13 +125,11 @@ class mainMenu(configuration,TABLE_USERS):
         
         if self.choice == 1 :   # sign in
             
-            signUpMenu_Object = signUpMenu()
-            signUpMenu_Object.signUp()
+            signUpMenu_Object = signUpMenu(self.PARENT)
         
         elif self.choice == 2 : # sign out
             
-            signInMenu_Object = signInMenu()
-            signInMenu_Object.signIn()
+            signInMenu_Object = signInMenu(self.PARENT)
         
         elif self.choice == 3 : # admin sign in
             
@@ -146,12 +147,12 @@ class mainMenu(configuration,TABLE_USERS):
     
     def welcomeScreen(self): # Function to display main menu & prompting user choice
         
-        self.clear() # clear console
+        self.PARENT.clear() # clear console
         
         print("\n\n\n\t Welcome to banking services....... ") # welcome message
         time.sleep(2) # sleep for 2 sec
         
-        self.clear() # clear console
+        self.PARENT.clear() # clear console
         
         ##Menu 
         
@@ -168,14 +169,17 @@ class mainMenu(configuration,TABLE_USERS):
         
     
 
-class signUpMenu(configuration) :
+class signUpMenu(object) :
     
     
-    def __init__(self):
+    def __init__(self,parent):
         
-        super().clearFunction()
+        
+        self.PARENT = parent
         
         self.desposit = 0    # Initializing of deposit money
+        
+        self.signUp()
     
     
     def userAddress(self):
@@ -218,19 +222,19 @@ class signUpMenu(configuration) :
                     while True :   # To check if entered amount is enough to create an account
                         
                         try:
-                            self.clear()
+                            self.PARENT.clear()
                             self.desposit = int(input('\n Enter the amount to deposit : Rs. '))
                             
                         except ValueError: # In case of an invalid input
                             
-                            self.clear()
+                            self.PARENT.clear()
                             print("\n\n\n\t Sorry! System can't process your request.... \n\n\t Please enter a valid amount....")
                             time.sleep(2)
                             continue
                         
                         if self.desposit < 5000 :  # Comparing the deposited amount with min bal
                             
-                            self.clear()
+                            self.PARENT.clear()
                             print("\n\n\t Note : Current accounts must have a minimum balance of Rs.5000.\n\n\t Please try again.....")
                             time.sleep(2)
                             continue
@@ -275,33 +279,34 @@ class signUpMenu(configuration) :
         
         if decision == 'y' or decision == 'Y' :
             
-            self.clear()
+            self.PARENT.clear()
             print("\n Processing your request..... Please wait.....")
             time.sleep(2)
             
-            self.clear()
+            self.PARENT.clear()
             print("\n Creating user account...... This may take a moment......")
             
 
                             
-class signInMenu(configuration):
+class signInMenu(object):
     
     
-    def __init__(self):
+    def __init__(self,parent):
         
-        super().clearFunction()
+        
+        self.PARENT = parent
         
         self.signInSubMenu()
         
     
     def signInSubMenu(self):
         
-        self.clear() # clear console
+        self.PARENT.clear() # clear console
         
         print("\n\n\n\t Welcome back....... ") # welcome message
         time.sleep(2) # sleep for 2 sec
         
-        self.clear() # clear console
+        self.PARENT.clear() # clear console
         
         ##Sub-menu for signIn
         
