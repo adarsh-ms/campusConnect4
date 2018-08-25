@@ -3,6 +3,8 @@ from sys import platform
 import random
 
 import cx_Oracle
+from asn1crypto._ffi import null
+from symbol import argument
 
 
 class configuration(object):          #For initial configuration of db & clear function
@@ -14,7 +16,6 @@ class configuration(object):          #For initial configuration of db & clear f
         self.clearFunction()
         self.dbSetup()
         self.dbCredentials()
-        self.launchMenu()
         
           
     def clearFunction(self):    #Initialising clear
@@ -42,7 +43,6 @@ class configuration(object):          #For initial configuration of db & clear f
         
             print(os.environ.get('ORACLE_HOME'))
             print(os.environ.get('LD_LIBRARY_PATH'))
-            time.sleep(2)
         
     
     def dbCredentials(self):        #To prompt user for database login credentials
@@ -63,52 +63,117 @@ class configuration(object):          #For initial configuration of db & clear f
         self.con.close()
     
      
-    def createTable(self):          #To check if CUSTOMERS table already exits or not & if not, create the table
-        
-        
-        self.CUR.execute("SELECT tname FROM tab WHERE tname = 'CUSTOMERS'")
-        print(self.CUR.fetchall())
-        time.sleep(2)
-        
-        if self.CUR.fetchall() == "[]" :
-            
-   
-            
-            print("table created")
-            time.sleep(2)
-    
-    
     def launchMenu(self):
         
         welcomeMenu_Object = mainMenu(self)
     
          
 
-class TABLE_USERS (object):         #Table for storing aacount no,name,date created,balance,account type,address
+class tableConfiguration (configuration):         #Table for storing aacount no,name,date created,balance,account type,address
     
     
-    def __init__(self,cur):
+    def __init__(self):
 
-        self.CUR = cur              #cur=con.cursor() from configuration class via child class
-        self.createTable()
+        
+        super().__init__()                      #super(tableConfiguration,self).__init__()
+        
+        self.createTables()
+        
+        self.launchMenu()
           
-        print("USERS")  
     
-    
-    def insertIntoTableCustomers(self,accNo,line1,line2,city,state,zipCode):
+    def createTables(self):          #To check if CUSTOMERS table already exits or not & if not, create the table
         
         
-        self.accountNumber = accNo
-        self.addressLine1 = line1
-        self.addressLine2 = line2
-        self.city = city
-        self.state = state
-        self.zipCode = zipCode
+        self.cur.execute("SELECT table_name FROM all_tables WHERE table_name IN ('CUSTOMERS','ACCOUNTS','CUSTOMER_PASSWORD','CLOSED_ACCOUNTS','TRANSACTIONS')") #Returns the name of tables if they are present in the database
+
+        table_tuple = self.cur.fetchall()   #Returns a list of tuples of relations
+        print(table_tuple)
         
-        self.CUR.execute("""INSERT INTO customers VALUES (:accountNumber,
-                            ADDRESS_TABLE(ADDRESS_SUB_COLUMNS(:addressLine1, :addressLine2, :city, :state, :zip)""",
-                            (self.accountNumber,self.addressLine1,self.addressLine2,self.city,self.state,self.zip))
+        def CREATE_TABLE_CUSTOMERS() :      #For creating relation CUSTOMERS if it doesn't exist
+            
+            print("table CUSTOMERS does not exist")
+                
+            self.cur.execute("""CREATE TABLE CUSTOMERS(
+                                customer_id VARCHAR2(10)         NOT NULL,
+                                customer_name VARCHAR2(20)       NOT NULL,
+                                customer_address VARCHAR2(70)    NOT NULL,
+                                date_of_sign_up DATE,
+                                PRIMARY KEY (customer_id))""")
         
+        def CREATE_TABLE_ACCOUNTS():        #For creating relation ACCOUNTS if it doesn't exist
+            
+            print("table ACCOUNTS does not exist")
+                
+            self.cur.execute("""CREATE TABLE ACCOUNTS(
+                                customer_id VARCHAR2(10)    NOT NULL,
+                                account_id VARCHAR2(14)     NOT NULL,
+                                account_type VARCHAR2(4)    NOT NULL,
+                                main_balance FLOAT          NOT NULL,
+                                date_created DATE,
+                                PRIMARY KEY (account_id),
+                                FOREIGN KEY (customer_id) REFERENCES CUSTOMERS(customer_id))""")
+            
+        def CREATE_TABLE_CUSTOMER_PASSWORD():   #For creating relation CUSTOMER_PASSWORD if it doesn't exist
+            
+            print("table CUSTOMER_PASSWORD does not exist")
+                
+            self.cur.execute("""CREATE TABLE CUSTOMER_PASSWORD(
+                                customer_id VARCHAR2(10)    NOT NULL UNIQUE,
+                                password VARCHAR2(20)       NOT NULL,
+                                date_modified DATE)""")
+            
+        def CREATE_TABLE_CLOSED_ACCOUNTS():     #For creating relation CLOSED_ACCOUNTS if it doesn't exist
+            
+            print("table CLOSED_ACCOUNTS does not exist")
+                
+            self.cur.execute("""CREATE TABLE CLOSED_ACCOUNTS(
+                                account_id VARCHAR2(14)    NOT NULL UNIQUE,
+                                date_of_closure DATE       NOT NULL)""")
+            
+        def CREATE_TABLE_TRANSACTIONS():        #For creating relation TRANSACTIONS if it doesn't exist
+            
+            print("table TRANSACTIONS does not exist")
+                
+            self.cur.execute("""CREATE TABLE TRANSACTIONS(
+                                from_account_id VARCHAR2(14)    NOT NULL,
+                                to_account_id VARCHAR2(14)      NOT NULL,
+                                amount FLOAT                    NOT NULL,
+                                date_of_transaction DATE        NOT NULL)""")
+        
+        
+        switchCases = {
+                
+                'CUSTOMERS'         : CREATE_TABLE_CUSTOMERS,
+                
+                'ACCOUNTS'          : CREATE_TABLE_ACCOUNTS,
+                
+                'CUSTOMER_PASSWORD' : CREATE_TABLE_CUSTOMER_PASSWORD,
+                
+                'CLOSED_ACCOUNTS'   : CREATE_TABLE_CLOSED_ACCOUNTS,
+                
+                'TRANSACTIONS'      : CREATE_TABLE_TRANSACTIONS 
+            
+            }
+            
+        
+        table_list = ['CUSTOMERS','ACCOUNTS','CUSTOMER_PASSWORD','CLOSED_ACCOUNTS','TRANSACTIONS']
+        
+        for i in range(0,len(table_tuple)):
+             
+            print(i)
+            for name in table_tuple[i] :
+                
+                print(name)
+                table_list.remove('{0}'.format(name))
+                
+        print(table_list)
+        
+        
+        for name in table_list :
+            
+            print(name)
+            switchCases[name]()
         
 
 class mainMenu(object):
@@ -123,13 +188,13 @@ class mainMenu(object):
                 
     def subMenu(self): # Function to handle user input
         
-        if self.choice == 1 :   # sign in
+        if self.choice == 1 :   # sign up
             
-            signUpMenu_Object = signUpMenu(self.PARENT)
+            signUpMenu(self.PARENT)
         
-        elif self.choice == 2 : # sign out
+        elif self.choice == 2 : # sign in
             
-            signInMenu_Object = signInMenu(self.PARENT)
+            signInMenu(self.PARENT)
         
         elif self.choice == 3 : # admin sign in
             
@@ -254,9 +319,9 @@ class signUpMenu(object) :
                         
                         print("\n Processing your request... Please wait.....")
                         time.sleep(1)
+                        exit()
                         
-                        mainMenu_Object = mainMenu()
-                        mainMenu_Object.welcomeScreen()
+#                         mainMenu(self.PARENT).welcomeScreen()
             
             else : 
                 
@@ -364,4 +429,4 @@ class signInMenu(object):
 if __name__ == '__main__':
 
     
-    initialObject = configuration()
+    initialObject = tableConfiguration()

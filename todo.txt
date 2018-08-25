@@ -3,3 +3,18 @@ def accountIdGeneration(self):
         
         self.accountId = str("AC")+str(random.randint(0,999999999999))+str("IN")
         print(self.accountId)
+
+
+def insertIntoTableCustomers(self,accNo,line1,line2,city,state,zipCode):
+        
+        
+        self.accountNumber = accNo
+        self.addressLine1 = line1
+        self.addressLine2 = line2
+        self.city = city
+        self.state = state
+        self.zipCode = zipCode
+        
+        self.CUR.execute("""INSERT INTO customers VALUES (:accountNumber,
+                            ADDRESS_TABLE(ADDRESS_SUB_COLUMNS(:addressLine1, :addressLine2, :city, :state, :zip)""",
+                            (self.accountNumber,self.addressLine1,self.addressLine2,self.city,self.state,self.zip))
