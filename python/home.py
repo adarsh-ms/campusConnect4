@@ -6,6 +6,31 @@ import cx_Oracle
 from asn1crypto._ffi import null
 from symbol import argument
 
+
+class Error(Exception):
+    
+    """Base class for other exceptions"""
+    pass
+
+class invalidNameError(Error):
+    
+    """Raised when the entered user name is invalid"""
+    pass
+
+class invalidAddressError(Error):
+    
+    """Raised when the entered address is invalid"""
+    pass
+
+class invalidPincodeError(Error):
+    
+    """Raised when the entered pincode is not 6 digit"""
+
+class weakPassword(Error):
+    
+    """Raised when the entered password doesn't meet the requirements"""
+    pass
+
     
 
 class configuration(object):          #For initial configuration of db & clear function
@@ -365,21 +390,102 @@ class signUpMenu(dbOperations) :
     def userAddress(self):
                 
             print("\n Address : ")                          # Address of user ( line 1 & 2, city, state, pincode )
-            self.line1 = input('\n\t Line 1 : ')
-            self.line2 = input('\n\t Line 2 : ')
-            self.city = input('\n\t City : ')
-            self.state = input('\n\t State : ')
-            self.pinCode = int(input('\n\t Pincode : '))    
-    
+            
+            while True :
+                
+                try:
+                    self.line1 = input('\n\t Line 1 : ')
+                    self.line2 = input('\n\t Line 2 : ')
+                    
+                    if len(self.line1) < 6 or len(self.line2) < 6 :
+                        
+                        raise invalidAddressError
+                    
+                    break
+                    
+                except invalidAddressError:
+                    print("\n\tPlease enter a valid address")
+                    time.sleep(0.5)
+                    self.PARENT.clear()
+                    
+            while True :
+                    
+                try:
+                    self.city = input('\n\t City : ')
+                    
+                    if len(self.city) < 3 :
+                        
+                        raise invalidAddressError
+                    
+                    
+                    while True :
+                        
+                        try:
+                            self.state = input('\n\t State : ')
+                            
+                            if len(self.state) < 3 :
+                                
+                                raise invalidAddressError
+                        
+                            
+                            while True :
+                            
+                                try:
+                                    self.pinCode = int(input('\n\t Pincode : '))    
+                                    
+                                    if len(str(self.pinCode)) != 6 :
+                                        
+                                        raise invalidAddressError
+                                    
+                                    break
+                            
+                                except invalidAddressError:
+                                    print("\n\tPlease enter a 6 digit pincode")
+                                    time.sleep(0.5)
+                                    self.PARENT.clear()
+                            
+                                except ValueError:
+                                    print("\n\tPlease enter a valid pincode")
+                                    time.sleep(0.5)
+                                    self.PARENT.clear()
+                            break
+                        
+                        except invalidAddressError:
+                            print("\n\tPlease enter a valid state")
+                            time.sleep(0.5)
+                            self.PARENT.clear()
+                        
+                    break    
+                
+                except invalidAddressError:
+                    print("\n\tPlease enter a valid city name")
+                    time.sleep(0.5)
+                    self.PARENT.clear()
+                
+                    
     
     def userName(self):
                 
-        print("\n Name : ")                                # Name of user ( fName & lName )
-        self.fName = input('\n\t First Name : ')
-        
-        self.lName = input('\n\t Last Name : ')
+            while True:
+            
+                try:
+                    print("\n Name : ")                                # Name of user ( fName & lName )
+                    self.fName = input('\n\t First Name : ')
+                    self.lName = input('\n\t Last Name : ')
                     
-                   
+                    if not self.fName or not self.lName:
+                    
+                        raise invalidNameError
+                     
+                    break 
+                     
+                except invalidNameError:
+                    print("\n\tPlease Enter a valid name")
+                    time.sleep(0.5)
+                    self.PARENT.clear()
+    
+    
+            
     def accountType(self):   # Function for determining acnt type during sign up
             
             print("\n Choose your account type : "),         # Account type ( savings or current )
