@@ -1,17 +1,22 @@
 import os, time
 from sys import platform
-import random
+import random,datetime
 
 import cx_Oracle
 from asn1crypto._ffi import null
 from symbol import argument
 
+    
 
 class configuration(object):          #For initial configuration of db & clear function
     
     
     
     def __init__(self): 
+        
+        
+        self.DATE = datetime.datetime.now().date()
+        self.TIME = datetime.datetime.now().time()
         
         self.clearFunction()
         self.dbSetup()
@@ -30,7 +35,7 @@ class configuration(object):          #For initial configuration of db & clear f
         elif platform == "win32":
              
             self.clear = lambda: os.system('cls')
-
+            
 
     def dbSetup(self):          #Initialising db for linux
 
@@ -95,10 +100,15 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
             print("table CUSTOMERS does not exist")
                 
             self.cur.execute("""CREATE TABLE CUSTOMERS(
-                                customer_id VARCHAR2(10)         NOT NULL,
-                                customer_name VARCHAR2(20)       NOT NULL,
-                                customer_address VARCHAR2(70)    NOT NULL,
-                                date_of_sign_up DATE,
+                                customer_id VARCHAR2(12)         NOT NULL,
+                                first_name VARCHAR2(20)          NOT NULL,
+                                last_name VARCHAR2(20)           NOT NULL,
+                                address_line1 VARCHAR2(70)       NOT NULL,
+                                address_line2 VARCHAR2(70)       NOT NULL,
+                                city VARCHAR2(20)                NOT NULL,
+                                state VARCHAR2(20)               NOT NULL,
+                                pincode NUMBER                   NOT NULL,
+                                date_of_sign_up DATE             DEFAULT (SYSDATE),
                                 PRIMARY KEY (customer_id))""")
         
         def CREATE_TABLE_ACCOUNTS():        #For creating relation ACCOUNTS if it doesn't exist
@@ -106,11 +116,12 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
             print("table ACCOUNTS does not exist")
                 
             self.cur.execute("""CREATE TABLE ACCOUNTS(
-                                customer_id VARCHAR2(10)    NOT NULL,
+                                customer_id VARCHAR2(12)    NOT NULL,
                                 account_id VARCHAR2(14)     NOT NULL,
                                 account_type VARCHAR2(4)    NOT NULL,
                                 main_balance FLOAT          NOT NULL,
-                                date_created DATE,
+                                date_created DATE           DEFAULT (SYSDATE),
+                                status VARCHAR(2)           DEFAULT 'U',
                                 PRIMARY KEY (account_id),
                                 FOREIGN KEY (customer_id) REFERENCES CUSTOMERS(customer_id))""")
             
@@ -119,9 +130,10 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
             print("table CUSTOMER_PASSWORD does not exist")
                 
             self.cur.execute("""CREATE TABLE CUSTOMER_PASSWORD(
-                                customer_id VARCHAR2(10)    NOT NULL UNIQUE,
+                                customer_id VARCHAR2(12)    NOT NULL UNIQUE,
                                 password VARCHAR2(20)       NOT NULL,
-                                date_modified DATE)""")
+                                date_modified DATE          DEFAULT (SYSDATE))""")
+        
             
         def CREATE_TABLE_CLOSED_ACCOUNTS():     #For creating relation CLOSED_ACCOUNTS if it doesn't exist
             
@@ -195,35 +207,81 @@ class dbOperations(object):
         self.PARENT = parent
 
     
-    def insertIntoTableCUSTOMERS(self,id,name,addr,date):
+    def insertIntoTableCUSTOMERS(self,id,fName,lName,line1,line2,city,state,pin):
         
-        self.PARENT.cur.execute('INSERT INTO CUSTOMERS VALUES(:cust_id,:acc_name,:address,:date_of_signup)',(id,name,addr,date))
-    
-    
-    def insertIntoTableACCOUNTS(self,cID,aID,type,bal,date):
+        print("In CUSTOMERS insertion")
+        self.PARENT.cur.execute("""INSERT INTO CUSTOMERS 
+                                 VALUES(:cust_id,:fName,:lName,:line1,:line2,:state,:city,:pinCode,SYSDATE)""",
+                                 (id,fName,lName,line1,line2,city,state,pin))
+        print("Done")
+        self.PARENT.con.commit()
+        print("Table CUSTOMERS updated successfully")
         
-        self.PARENT.cur.execute("""INSERT INTO ACCOUNTS VALUES(:cust_id,:acc_id,:acc_type,:balance,:date_of_creation)""",(cID,aID,type,bal,date))
     
-    
-    def insertIntoTableCUSTOMER_PASSWORD(self,id,passwd,date):
+    def insertIntoTableACCOUNTS(self,cID,aID,type,bal):
         
-        self.PARENT.cur.execute("""INSERT INTO CUSTOMER_PASSWORD VALUES(:cust_id,:password,:date_modified)""",(id,passwd,date))
+        self.PARENT.cur.execute('INSERT INTO ACCOUNTS VALUES(:cust_id,:acc_id,:acc_type,:balance)',(cID,aID,type,bal))
     
     
-    def insertIntoTableCLOSED_ACCOUNT(self,id,date):
+    def insertIntoTableCUSTOMER_PASSWORD(self,id,passwd):
         
-        self.PARENT.cur.execute("""INSERT INTO CLOSED_ACCOUNT VALUES(:cust_id,:date_of_closure)""",(id,date))
-    
-    
-    def insertIntoTableTRANSACTIONS(self,fID,tID,amt,date):
+        self.PARENT.cur.execute('INSERT INTO CUSTOMER_PASSWORD VALUES(:cust_id,:password)',(id,passwd))
         
-        self.PARENT.cur.execute("""INSERT INTO ACCOUNTS VALUES(:from_id,:to_id,:amount,:date_of_transaction)""",(fID,tID,amt,date))
+    
+    def insertIntoTableCLOSED_ACCOUNT(self,id):
+        
+        self.PARENT.cur.execute('INSERT INTO CLOSED_ACCOUNT VALUES(:cust_id)',(id))
+    
+    
+    def insertIntoTableTRANSACTIONS(self,fID,tID,amt):
+        
+        self.PARENT.cur.execute('INSERT INTO ACCOUNTS VALUES(:from_id,:to_id,:amount)',(fID,tID,amt))
         
         
     def selectAllFromTable(self,table):
         
-        self.PARENT.cur.execute("SELECT * FROM :table_name",(table))
+        self.PARENT.cur.execute('SELECT * FROM :table_name',(table))
     
+    
+    def customerAddressChange(self,id,addr):
+        
+        
+        self.PARENT.cur.execute("""UPDATE CUSTOMERS
+                                   SET customer_address = :address
+                                   WHERE customer_id = :cust_id""",(addr,id))
+        
+    
+    def customerPasswordChange(self,id,passwd):
+        
+        
+        self.PARENT.cur.execute("""UPDATE CUSTOMERS_PASSWORD
+                                   SET password = :password
+                                   WHERE customer_id = :cust_id""",(passwd,id))
+    
+    
+    def customerIdGeneration(self):
+        
+        
+        self.PARENT.cur.execute("""SELECT customer_id 
+                                   FROM CUSTOMERS 
+                                   WHERE customer_id = (SELECT MAX(customer_id) FROM CUSTOMERS)""")
+        
+        self.lastId = self.PARENT.cur.fetchall()
+        print(self.lastId)
+        
+        if not self.lastId :
+            
+            self.cust_id = "C"+"001"+"R"
+            print(self.cust_id)
+        
+        else :
+             
+            self.cust_id = self.lastId[0][0].strip("CR")
+            self.cust_id = '{0:03d}'.format(int(self.cust_id)+1)
+            self.cust_id = 'C'+self.cust_id+'R'
+
+            print(self.cust_id)
+        
     
     def executeQueries(self,query):
         
@@ -272,7 +330,7 @@ class mainMenu(object):
         self.PARENT.clear() # clear console
         
         print("\n\n\n\t Welcome to banking services....... ") # welcome message
-        time.sleep(2) # sleep for 2 sec
+        time.sleep(1) # sleep for 2 sec
         
         self.PARENT.clear() # clear console
         
@@ -291,7 +349,7 @@ class mainMenu(object):
         
     
 
-class signUpMenu(object) :
+class signUpMenu(dbOperations) :
     
     
     def __init__(self,parent):
@@ -311,16 +369,17 @@ class signUpMenu(object) :
             self.line2 = input('\n\t Line 2 : ')
             self.city = input('\n\t City : ')
             self.state = input('\n\t State : ')
-            self.pinCode = input('\n\t Pincode : ')    
+            self.pinCode = int(input('\n\t Pincode : '))    
     
     
     def userName(self):
                 
-            print("\n Name : ")                                # Name of user ( fName & lName )
-            self.fName = input('\n\t First Name : ')
-            self.lName = input('\n\t Last Name : ')
-    
-    
+        print("\n Name : ")                                # Name of user ( fName & lName )
+        self.fName = input('\n\t First Name : ')
+        
+        self.lName = input('\n\t Last Name : ')
+                    
+                   
     def accountType(self):   # Function for determining acnt type during sign up
             
             print("\n Choose your account type : "),         # Account type ( savings or current )
@@ -351,14 +410,14 @@ class signUpMenu(object) :
                             
                             self.PARENT.clear()
                             print("\n\n\n\t Sorry! System can't process your request.... \n\n\t Please enter a valid amount....")
-                            time.sleep(2)
+                            time.sleep(1)
                             continue
                         
                         if self.desposit < 5000 :  # Comparing the deposited amount with min bal
                             
                             self.PARENT.clear()
                             print("\n\n\t Note : Current accounts must have a minimum balance of Rs.5000.\n\n\t Please try again.....")
-                            time.sleep(2)
+                            time.sleep(1)
                             continue
                         
                         else :
@@ -383,7 +442,7 @@ class signUpMenu(object) :
             else : 
                 
                 print("\n Sorry! Our bank doesn't provide this type of account. Please choose from the available options.....")
-                time.sleep(2)
+                time.sleep(1)
                 self.accountType()
                 
             
@@ -403,11 +462,25 @@ class signUpMenu(object) :
             
             self.PARENT.clear()
             print("\n Processing your request..... Please wait.....")
-            time.sleep(2)
+            time.sleep(1)
+            
+            self.saveCustomerCredentials()
             
             self.PARENT.clear()
             print("\n Creating user account...... This may take a moment......")
+            
+#             self.saveCustomerCredentials()
                
+  
+    def saveCustomerCredentials(self):
+        
+        super().__init__(self.PARENT)
+        
+        self.customerIdGeneration()
+        
+        self.insertIntoTableCUSTOMERS(self.cust_id, self.fName, self.lName, self.line1, self.line2, self.city, self.state, self.pinCode)
+             
+    
                             
 class signInMenu(object):
     
@@ -425,7 +498,7 @@ class signInMenu(object):
         self.PARENT.clear() # clear console
         
         print("\n\n\n\t Welcome back....... ") # welcome message
-        time.sleep(2) # sleep for 2 sec
+        time.sleep(1) # sleep for 2 sec
         
         self.PARENT.clear() # clear console
         
