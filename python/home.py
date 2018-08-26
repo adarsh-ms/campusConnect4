@@ -186,6 +186,53 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
             exit()
             
 
+
+class dbOperations(object):
+    
+    
+    def __init__(self,parent):
+        
+        self.PARENT = parent
+
+    
+    def insertIntoTableCUSTOMERS(self,id,name,addr,date):
+        
+        self.PARENT.cur.execute('INSERT INTO CUSTOMERS VALUES(:cust_id,:acc_name,:address,:date_of_signup)',(id,name,addr,date))
+    
+    
+    def insertIntoTableACCOUNTS(self,cID,aID,type,bal,date):
+        
+        self.PARENT.cur.execute("""INSERT INTO ACCOUNTS VALUES(:cust_id,:acc_id,:acc_type,:balance,:date_of_creation)""",(cID,aID,type,bal,date))
+    
+    
+    def insertIntoTableCUSTOMER_PASSWORD(self,id,passwd,date):
+        
+        self.PARENT.cur.execute("""INSERT INTO CUSTOMER_PASSWORD VALUES(:cust_id,:password,:date_modified)""",(id,passwd,date))
+    
+    
+    def insertIntoTableCLOSED_ACCOUNT(self,id,date):
+        
+        self.PARENT.cur.execute("""INSERT INTO CLOSED_ACCOUNT VALUES(:cust_id,:date_of_closure)""",(id,date))
+    
+    
+    def insertIntoTableTRANSACTIONS(self,fID,tID,amt,date):
+        
+        self.PARENT.cur.execute("""INSERT INTO ACCOUNTS VALUES(:from_id,:to_id,:amount,:date_of_transaction)""",(fID,tID,amt,date))
+        
+        
+    def selectAllFromTable(self,table):
+        
+        self.PARENT.cur.execute("SELECT * FROM :table_name",(table))
+    
+    
+    def executeQueries(self,query):
+        
+        self.QUERY = query
+        
+        self.PARENT.cur.execute(self.QUERY)
+        
+        
+
 class mainMenu(object):
     
     
@@ -360,8 +407,7 @@ class signUpMenu(object) :
             
             self.PARENT.clear()
             print("\n Creating user account...... This may take a moment......")
-            
-
+               
                             
 class signInMenu(object):
     
