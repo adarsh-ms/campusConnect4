@@ -5,6 +5,8 @@ import random,datetime
 import cx_Oracle
 
 
+import re,getpass
+
 
 class Error(Exception):
     
@@ -29,6 +31,10 @@ class weakPassword(Error):
     
     """Raised when the entered password doesn't meet the requirements"""
     pass
+
+class passwordMismatch(Error):
+    
+    """Raised when the passwords doesn't match"""
 
     
 
@@ -231,35 +237,45 @@ class dbOperations(object):
         self.PARENT = parent
 
     
-    def insertIntoTableCUSTOMERS(self,id,fName,lName,line1,line2,city,state,pin):
+    def insertIntoTableCUSTOMERS(self,cust_id,fName,lName,line1,line2,city,state,pin):
         
-        print("In CUSTOMERS insertion")
         self.PARENT.cur.execute("""INSERT INTO CUSTOMERS 
                                  VALUES(:cust_id,:fName,:lName,:line1,:line2,:state,:city,:pinCode,SYSDATE)""",
-                                 (id,fName,lName,line1,line2,city,state,pin))
-        print("Done")
+                                 (cust_id,fName,lName,line1,line2,city,state,pin))
+        
         self.PARENT.con.commit()
         print("Table CUSTOMERS updated successfully")
         
     
-    def insertIntoTableACCOUNTS(self,cID,aID,type,bal):
+    def insertIntoTableACCOUNTS(self,cID,aID,acc_type,bal):
         
-        self.PARENT.cur.execute("INSERT INTO ACCOUNTS VALUES(:cust_id,:acc_id,:acc_type,:balance,SYSDATE,'A')",(cID,aID,type,bal))
+        self.PARENT.cur.execute("INSERT INTO ACCOUNTS VALUES(:cust_id,:acc_id,:acc_type,:balance,SYSDATE,'A')",(cID,aID,acc_type,bal))
+        
+        self.PARENT.con.commit()
+        print("Table ACCOUNTS updated successfully")
+        
+        
+    def insertIntoTableCUSTOMER_PASSWORD(self,cust_id,passwd):
+        
+        self.PARENT.cur.execute('INSERT INTO CUSTOMER_PASSWORD VALUES(:cust_id,:password,SYSDATE)',(cust_id,passwd))
+        
+        self.PARENT.con.commit()
+        print("Table CUSTOMER_PASSWORD updated successfully")
     
     
-    def insertIntoTableCUSTOMER_PASSWORD(self,id,passwd):
+    def insertIntoTableCLOSED_ACCOUNT(self,cust_id):
         
-        self.PARENT.cur.execute('INSERT INTO CUSTOMER_PASSWORD VALUES(:cust_id,:password)',(id,passwd))
+        self.PARENT.cur.execute('INSERT INTO CLOSED_ACCOUNT VALUES(:cust_id)',(cust_id))
+        self.PARENT.con.commit()
+        print("Table CLOSED_ACCOUNT updated successfully")
         
-    
-    def insertIntoTableCLOSED_ACCOUNT(self,id):
-        
-        self.PARENT.cur.execute('INSERT INTO CLOSED_ACCOUNT VALUES(:cust_id)',(id))
-    
     
     def insertIntoTableTRANSACTIONS(self,fID,tID,amt):
         
         self.PARENT.cur.execute('INSERT INTO ACCOUNTS VALUES(:from_id,:to_id,:amount)',(fID,tID,amt))
+        
+        self.PARENT.con.commit()
+        print("Table TRANSACTIONS updated successfully")
         
         
     def selectAllFromTable(self,table):
@@ -267,21 +283,27 @@ class dbOperations(object):
         self.PARENT.cur.execute('SELECT * FROM :table_name',(table))
     
     
-    def customerAddressChange(self,id,addr):
+    def customerAddressChange(self,cust_id,addr):
         
         
         self.PARENT.cur.execute("""UPDATE CUSTOMERS
                                    SET customer_address = :address
-                                   WHERE customer_id = :cust_id""",(addr,id))
+                                   WHERE customer_id = :cust_id""",(addr,cust_id))
+        
+        self.PARENT.con.commit()
+        print("Table CUSTOMERS updated successfully")
         
     
-    def customerPasswordChange(self,id,passwd):
+    def customerPasswordChange(self,cust_id,passwd):
         
         
         self.PARENT.cur.execute("""UPDATE CUSTOMERS_PASSWORD
                                    SET password = :password
-                                   WHERE customer_id = :cust_id""",(passwd,id))
-    
+                                   WHERE customer_id = :cust_id""",(passwd,cust_id))
+        
+        self.PARENT.con.commit()
+        print("Table CUSTOMER_PASSWORD updated successfully")
+        
     
     def customerIdGeneration(self):
         
@@ -597,7 +619,22 @@ class signUpMenu(dbOperations) :
         self.accountType()
         
         
-        decision = input('\n Your account is to be created. Do you wish to proceed or quit ? [y/q]')
+        self.PARENT.clear()
+        
+        print("""\t Name :
+                 \n\t\t First Name : {0}
+                 \n\t\t Last Name : {1}
+                 \n\t Address :
+                 \n\t\t Line1 : {2}
+                 \n\t\t Line2 : {3}
+                 \n\t\t City : {4}
+                 \n\t\t State : {5}
+                 \n\t\t Pincode : {6}
+                 \n\t Account type : {7}
+                 \n\t Initial deposit : {8}""".format(self.fName,self.lName,self.line1,self.line2,self.city,self.state,self.pinCode,self.accntType,self.desposit))
+
+        
+        decision = input('\n\n Your account is to be created. Do you wish to proceed or quit ? [y/q]')
         
         if decision.lower() == 'y' :
             
@@ -617,6 +654,11 @@ class signUpMenu(dbOperations) :
             
             print("\n\n\t Congrats!!!!!\n\n\t Your Account was successfully created!")
             
+            self.printCredentials()
+            
+            self.saveCustomerPassword()
+            
+            print("\n\n\t Your password has been successfully updated !")
             
   
     def saveCustomerCredentials(self):
@@ -632,10 +674,90 @@ class signUpMenu(dbOperations) :
         
         self.accountIdGeneration(self.accntType)
         
-        
         self.insertIntoTableACCOUNTS(self.cust_id, self.accountId, self.accntType, self.desposit)
         
-                                    
+    
+    def printCredentials(self):
+        
+        
+        self.search_num = re.compile(".*[0-9].*") 
+        self.search_lowerCase = re.compile(".*[a-z].*")
+        self.search_upperCase = re.compile(".*[A-Z].*")
+        self.search_specialChar = re.compile(".*[^a-z^A-Z^0-9].*")
+        
+        while True :
+             
+                 
+            try:    
+                print("\n\n\t Your account credentials are : ")
+                print("\n\t\t Customer id : ", self.cust_id)
+                print("\n\t\t Account id : ", self.accountId)
+                print("""\n\n Note : * This customer id will be used as your username from now on
+                         \n        * Please remember these details for availing our services""")
+                
+                print("\n\n Please create a password to make your account secure !")
+                print("""\n Password should meet the following necessities : 
+                            
+                            * contain atleast 8 characters
+                            * contain atleast 1 numeric value
+                            * contain uppercase alphabets
+                            * contain lowercase alphabets
+                            * use special characters like */@$! etc..
+                            
+                            *Don't use your name as password""")
+                
+                pass1 = getpass.getpass(prompt="\n\n\n\t new password : ")
+                
+                if len(pass1) >= 8 :
+                
+                    if self.search_num.match(pass1) and self.search_upperCase.match(pass1) and self.search_lowerCase.match(pass1) and self.search_specialChar.match(pass1):  
+                        
+                        
+                            print("\t\t\t Strong")
+                    
+                    else :
+                        
+                            print("\t\t\t Weak")
+                            raise weakPassword  
+                    
+                
+                else :
+                    
+                    raise weakPassword
+                
+                
+                while True :
+                    
+                    
+                    try:
+                        self.passwd = getpass.getpass(prompt="\n\t confirm password : ")
+                        
+                        if pass1 != self.passwd :
+                            
+                            raise passwordMismatch
+                        
+                        break
+                    
+            
+                    except passwordMismatch:
+                        print("\n\t Passwords doesn't match. Please re-try..")
+                        
+                break        
+            
+            except weakPassword:
+                print("\n\t Password doesn't meet the requirements..\n\t Please try again!!")
+                time.sleep(0.5)
+                self.PARENT.clear()   
+            
+            
+    
+    def saveCustomerPassword(self):
+        
+        
+        self.insertIntoTableCUSTOMER_PASSWORD(self.cust_id, self.passwd)
+    
+                
+                                
                             
 class signInMenu(object):
     
