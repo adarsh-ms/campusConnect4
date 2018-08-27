@@ -3,8 +3,7 @@ from sys import platform
 import random,datetime
 
 import cx_Oracle
-from asn1crypto._ffi import null
-from symbol import argument
+
 
 
 class Error(Exception):
@@ -142,11 +141,11 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
                 
             self.cur.execute("""CREATE TABLE ACCOUNTS(
                                 customer_id VARCHAR2(12)    NOT NULL,
-                                account_id VARCHAR2(14)     NOT NULL,
+                                account_id VARCHAR2(16)     NOT NULL,
                                 account_type VARCHAR2(4)    NOT NULL,
                                 main_balance FLOAT          NOT NULL,
                                 date_created DATE           DEFAULT (SYSDATE),
-                                status VARCHAR(2)           DEFAULT 'U',
+                                status VARCHAR(2)           DEFAULT 'A',
                                 PRIMARY KEY (account_id),
                                 FOREIGN KEY (customer_id) REFERENCES CUSTOMERS(customer_id))""")
             
@@ -165,7 +164,7 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
             print("table CLOSED_ACCOUNTS does not exist")
                 
             self.cur.execute("""CREATE TABLE CLOSED_ACCOUNTS(
-                                account_id VARCHAR2(14)    NOT NULL UNIQUE,
+                                account_id VARCHAR2(16)    NOT NULL UNIQUE,
                                 date_of_closure DATE       NOT NULL)""")
             
         def CREATE_TABLE_TRANSACTIONS():        #For creating relation TRANSACTIONS if it doesn't exist
@@ -173,8 +172,8 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
             print("table TRANSACTIONS does not exist")
                 
             self.cur.execute("""CREATE TABLE TRANSACTIONS(
-                                from_account_id VARCHAR2(14)    NOT NULL,
-                                to_account_id VARCHAR2(14)      NOT NULL,
+                                from_account_id VARCHAR2(16)    NOT NULL,
+                                to_account_id VARCHAR2(16)      NOT NULL,
                                 amount FLOAT                    NOT NULL,
                                 date_of_transaction DATE        NOT NULL)""")
         
@@ -245,7 +244,7 @@ class dbOperations(object):
     
     def insertIntoTableACCOUNTS(self,cID,aID,type,bal):
         
-        self.PARENT.cur.execute('INSERT INTO ACCOUNTS VALUES(:cust_id,:acc_id,:acc_type,:balance)',(cID,aID,type,bal))
+        self.PARENT.cur.execute("INSERT INTO ACCOUNTS VALUES(:cust_id,:acc_id,:acc_type,:balance,SYSDATE,'A')",(cID,aID,type,bal))
     
     
     def insertIntoTableCUSTOMER_PASSWORD(self,id,passwd):
@@ -287,9 +286,7 @@ class dbOperations(object):
     def customerIdGeneration(self):
         
         
-        self.PARENT.cur.execute("""SELECT customer_id 
-                                   FROM CUSTOMERS 
-                                   WHERE customer_id = (SELECT MAX(customer_id) FROM CUSTOMERS)""")
+        self.PARENT.cur.execute("SELECT MAX(customer_id) FROM CUSTOMERS") 
         
         self.lastId = self.PARENT.cur.fetchall()
         print(self.lastId)
@@ -305,6 +302,43 @@ class dbOperations(object):
             self.cust_id = '{0:03d}'.format(int(self.cust_id)+1)
             self.cust_id = 'C'+self.cust_id+'R'
 
+            print(self.cust_id)
+    
+    
+    def accountIdGeneration(self,acc_type):
+        
+        
+        self.PARENT.cur.execute("""SELECT MAX(account_id) FROM ACCOUNTS 
+                                   WHERE account_type = :acc_type""",(acc_type))
+        
+        self.lastId = self.PARENT.cur.fetchall()
+        print(self.lastId[0][0])
+        
+        if self.lastId[0][0] is None :
+            
+            if acc_type == 'C':
+            
+                self.accountId = str("CA")+str(random.randint(0,9999999999))+str("IN")
+                print(self.accountId)
+        
+            elif acc_type == 'S' :
+             
+                self.accountId = str("SA")+str(random.randint(0,999999999999))+str("IN")
+                print(self.accountId)
+            
+        else :    
+            
+            self.accountId = self.lastId[0][0].strip("CAINS")
+            self.accountId = int(self.accountId)+1
+            
+            if acc_type == "C" :
+                
+                self.accountId = 'CA'+self.accountId+'IN'
+            
+            else :
+                
+                self.accountId = 'SA'+self.accountId+'IN'
+            
             print(self.cust_id)
         
     
@@ -492,19 +526,20 @@ class signUpMenu(dbOperations) :
             print("\n \t a. Savings Account [s]"),
             print("\t b. Current Account [c]")
             self.accntType = input('\n Enter your choice (s/c) : ')
+            self.accntType = self.accntType.upper()
             
-            if self.accntType == 's' or self.accntType == 'S' :     # Prompt if savings account
+            if self.accntType == 'S' :     # Prompt if savings account
                 
                 decision = input("\n Do you wish to make an initial deposit ? [y/n]")
-                if decision == 'y' or decision == 'Y' : # If chooses to pay
+                if decision.lower() == 'y' : # If chooses to pay
                     
                     self.desposit = int(input('\n Enter the amount to deposit : Rs. '))
                 
         
-            elif self.accntType == 'c' or self.accntType == 'C' :   # Prompt if current account
+            elif self.accntType == 'C' :   # Prompt if current account
                 
                 decision = input("\n Note : 'Current account' need a minimum balance of Rs. 5000. \n Do you wish to continue ? [y/n]")
-                if decision == 'y' or decision == 'Y' : # If choice is to make the payment
+                if decision.lower() == 'y' : # If choice is to make the payment
                     
                     while True :   # To check if entered amount is enough to create an account
                         
@@ -533,7 +568,7 @@ class signUpMenu(dbOperations) :
                 else :  # Prompt for changing the account type or cancel application
                     
                     decision = input("\n Do you wish to change account type or cancel the process ? [y/q]")
-                    if decision == 'y' or decision == 'Y' :
+                    if decision.lower() == 'y' :
                         
                         self.accountType()
                     
@@ -564,7 +599,7 @@ class signUpMenu(dbOperations) :
         
         decision = input('\n Your account is to be created. Do you wish to proceed or quit ? [y/q]')
         
-        if decision == 'y' or decision == 'Y' :
+        if decision.lower() == 'y' :
             
             self.PARENT.clear()
             print("\n Processing your request..... Please wait.....")
@@ -576,7 +611,13 @@ class signUpMenu(dbOperations) :
             print("\n Creating user account...... This may take a moment......")
             
 #             self.saveCustomerCredentials()
-               
+            
+            self.saveAccountCredentials()
+            self.PARENT.clear()
+            
+            print("\n\n\t Congrats!!!!!\n\n\t Your Account was successfully created!")
+            
+            
   
     def saveCustomerCredentials(self):
         
@@ -587,6 +628,14 @@ class signUpMenu(dbOperations) :
         self.insertIntoTableCUSTOMERS(self.cust_id, self.fName, self.lName, self.line1, self.line2, self.city, self.state, self.pinCode)
              
     
+    def saveAccountCredentials(self):
+        
+        self.accountIdGeneration(self.accntType)
+        
+        
+        self.insertIntoTableACCOUNTS(self.cust_id, self.accountId, self.accntType, self.desposit)
+        
+                                    
                             
 class signInMenu(object):
     
