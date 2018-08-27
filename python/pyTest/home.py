@@ -306,7 +306,7 @@ class dbOperations(object):
                                        address_line2 = :line2,
                                        city = :city,
                                        state = :state,
-                                       pincode = :pincode
+                                       pincode = :pincode,
                                    WHERE customer_id = :cust_id""",(line1,line2,city,state,pincode,cust_id))
         
         self.PARENT.con.commit()
@@ -983,16 +983,13 @@ class signInMenu(dbOperations):
             print("\n\t Please wait... Your request is being processed....")
             
             self.customerAddressChange(self.cust_id,signUpMenu_Object.line1,signUpMenu_Object.line2,signUpMenu_Object.city,signUpMenu_Object.state,signUpMenu_Object.pinCode)
-            time.sleep(1.2)
+            time.sleep(1)
             
-            self.PARENT.clear()
             print("\n\n\t Address updated successfully")
+            time.sleep(1)
             
-
-        input("\n\n\n\t press any key to continue...")
         
         self.signInSubMenu()
-            
             
             
 if __name__ == '__main__':
