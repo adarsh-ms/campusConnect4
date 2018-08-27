@@ -394,11 +394,11 @@ class mainMenu(object):
         
         elif self.choice == 3 : # admin sign in
             
-            self.adminSignIn()
+            adminSignInMenu(self.PARENT)
 
         elif self.choice == 4 : # quit
             
-            self.quit()
+            self.quitProgram()
         
         else :                 # Invalid choice 
             
@@ -428,6 +428,18 @@ class mainMenu(object):
     
         self.subMenu() # To interpret user choice & perform specific functions
         
+    
+    def quitProgram(self):
+        
+        
+        self.PARENT.con.close()
+        self.PARENT.clear()
+        
+        print("\n\n\n\t\tQuitting application......")
+        time.sleep(1)
+        
+        self.PARENT.clear()
+        exit()
     
 
 class signUpMenu(dbOperations) :
