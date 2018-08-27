@@ -36,6 +36,21 @@ class passwordMismatch(Error):
     
     """Raised when the passwords doesn't match"""
 
+
+class invalidCredentials(Error):
+    
+    """Raised when input password or customer id doesn't match"""
+
+
+class invalidAccountId(Error):
+    
+    """Raised when input account id doesn't exist"""
+    
+    
+class invalidCustomerId(Error):
+    
+    """Raised when input customer id doesn't exist"""    
+
     
 
 class configuration(object):          #For initial configuration of db & clear function
@@ -364,13 +379,7 @@ class dbOperations(object):
             print(self.cust_id)
         
     
-    def executeQueries(self,query):
-        
-        self.QUERY = query
-        
-        self.PARENT.cur.execute(self.QUERY)
-        
-        
+                
 
 class mainMenu(object):
     
@@ -771,7 +780,7 @@ class signUpMenu(dbOperations) :
                 
                                 
                             
-class signInMenu(object):
+class signInMenu(dbOperations):
     
     
     def __init__(self,parent):
@@ -779,8 +788,86 @@ class signInMenu(object):
         
         self.PARENT = parent
         
-        self.signInSubMenu()
         
+        self.promptCredentials()
+    
+    
+    def promptCredentials(self):
+        
+        super().__init__(self.PARENT)
+        
+        
+        turns = 0
+        
+        while True:
+        
+                
+            try:    
+                self.PARENT.clear()
+                
+                self.cust_id = input("\n\t username/customer-id : ")
+                
+                self.PARENT.cur.execute("""SELECT customer_id
+                                           FROM CUSTOMER_PASSWORD
+                                           WHERE customer_id = :cust_id""",{"cust_id" : self.cust_id})
+        
+                query_id = self.PARENT.cur.fetchall()
+                
+#                 print(query_id)
+                
+                if not query_id :
+                    
+                    raise invalidCustomerId
+                
+                
+                while turns < 3 :
+                
+                    try:
+                        self.PARENT.clear()
+                        
+                        print("\n\t username/customer-id : ",self.cust_id)
+                        self.passwd = getpass.getpass(prompt="\n\t Password : ")
+                        
+                        self.PARENT.cur.execute("""SELECT password
+                                                   FROM CUSTOMER_PASSWORD
+                                                   WHERE customer_id = :cust_id""",{"cust_id" : self.cust_id})
+        
+                        
+                        query_passwd = self.PARENT.cur.fetchall()
+                        
+                        if query_passwd[0][0] != self.passwd :
+                            
+                            turns += 1
+                            raise invalidCredentials
+                            
+                        
+                        break
+                    
+                    
+                    except invalidCredentials:
+                        print("\n\n\t Username or Password doesn't match.\n\t Please try again....")
+                        time.sleep(1.2)
+                    
+                
+                break
+                
+            except invalidCustomerId:
+                print("\n\n\t There is no user registered with this id.\n\t Please enter a valid id....")
+                time.sleep(1.2)
+                
+        
+        if turns < 3 :
+            
+            
+            self.signInSubMenu()
+        
+        else :
+            
+            self.PARENT.clear()
+            print("\n\n\n\t Sorry! Too many incorrect login attempts..\n\n\t Your account is locked..")
+            exit()
+            
+    
     
     def signInSubMenu(self):
         
@@ -804,7 +891,8 @@ class signInMenu(object):
                   7. Customer Logout ''')
 
         self.signInChoice = int(input('\n Enter your choice : ')) # To capture desired input
-    
+        
+        
         self.userChoice() # To interpret user choice & perform specific tasks
 
     
@@ -842,6 +930,19 @@ class signInMenu(object):
             
             print("\n Sorry! System can't determine the request....")
             self.signInSubMenu()
+     
+     
+     
+    def addressChange(self):
+        
+        query = """SELECT line1,line2,city,state,pincode
+                    FROM CUSTOMERS
+                    WHERE customer_id = :cust_id""",(self.cust_id)
+         
+        
+        print(self.result)
+        
+     
             
             
 if __name__ == '__main__':
