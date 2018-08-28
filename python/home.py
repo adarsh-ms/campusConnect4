@@ -57,7 +57,11 @@ class lockedAccountError(Error):
     """Raised when input customer id is locked due to invalid login attempts"""
 
 
+class insufficientBalance(Error):
+
+    """Raised when account has insufficient balance"""
     
+
 
 class configuration(object):          #For initial configuration of db & clear function
     
@@ -121,7 +125,7 @@ class configuration(object):          #For initial configuration of db & clear f
      
     def launchMenu(self):
         
-        welcomeMenu_Object = mainMenu(self)
+        mainMenu(self)
     
          
 
@@ -286,7 +290,7 @@ class dbOperations(object):
     
     def insertIntoTableCLOSED_ACCOUNT(self,cust_id):
         
-        self.PARENT.cur.execute('INSERT INTO CLOSED_ACCOUNT VALUES(:cust_id)',(cust_id))
+        self.PARENT.cur.execute('INSERT INTO CLOSED_ACCOUNT VALUES(:cust_id,SYSDATE)',(cust_id))
         
         self.PARENT.con.commit()
         print("Table CLOSED_ACCOUNT updated successfully")
@@ -294,7 +298,8 @@ class dbOperations(object):
     
     def insertIntoTableTRANSACTIONS(self,fID,tID,amt):
         
-        self.PARENT.cur.execute('INSERT INTO ACCOUNTS VALUES(:from_id,:to_id,:amount)',(fID,tID,amt))
+#         print(fID,' ',tID,' ',amt)
+        self.PARENT.cur.execute('INSERT INTO TRANSACTIONS VALUES(:from_id,:to_id,:amount,SYSDATE)',(fID,tID,amt))
         
         self.PARENT.con.commit()
         print("Table TRANSACTIONS updated successfully")
@@ -400,7 +405,41 @@ class dbOperations(object):
         self.PARENT.con.commit()
         print("Table CUSTOMER_PASSWORD updated successfully")
     
-                
+    
+    
+    def queryAccountId_type(self,acc_id,cust_id):
+        
+        self.PARENT.cur.execute("""SELECT account_id,account_type
+                                   FROM ACCOUNTS
+                                   WHERE account_id = :acc_id AND customer_id = :cust_id""",(acc_id,cust_id))
+    
+    
+        self.query_id = self.PARENT.cur.fetchall()
+        
+        
+    
+    def updateAccountBalance(self,acc_id,amt):
+        
+        self.PARENT.cur.execute("""UPDATE ACCOUNTS
+                                   SET main_balance = main_balance + :amt
+                                   WHERE account_id = :acc_id""",(amt,acc_id))
+        
+        self.PARENT.con.commit()
+        print("Table CUSTOMER_PASSWORD updated successfully")
+        
+    
+    def queryBalance(self,acc_id):
+        
+        self.PARENT.cur.execute("""SELECT main_balance
+                                   FROM ACCOUNTS
+                                   WHERE account_id = :acc_id""",{"acc_id":acc_id})
+    
+    
+        self.query_bal = self.PARENT.cur.fetchall()
+        
+    
+        
+        
 
 class mainMenu(object):
     
@@ -836,15 +875,15 @@ class signInMenu(dbOperations):
                 
                 self.cust_id = input("\n\t username/customer-id : ").upper()
                 
-                self.PARENT.cur.execute("""SELECT customer_id,status
-                                           FROM CUSTOMER_PASSWORD
-                                           WHERE customer_id = :cust_id""",{"cust_id" : self.cust_id})
+                self.PARENT.cur.execute("""SELECT A.customer_id,B.status
+                                           FROM CUSTOMER_PASSWORD A,CUSTOMERS B
+                                           WHERE A.customer_id = :cust_id AND B.customer_id = A.customer_id""",{"cust_id" : self.cust_id})
         
                 query_id = self.PARENT.cur.fetchall()
                 
 #                 print(query_id)
                 
-                if not query_id :
+                if not query_id or query_id[0][0] is None :
                     
                     raise invalidCustomerId
                 
@@ -1034,13 +1073,165 @@ class signInMenu(dbOperations):
             
     
     
-#     def depositMoney(self):
-#         
-#         
+    def depositMoney(self):
+         
+         
+        while True :
+             
+                
+            try:    
+                self.PARENT.clear()
+                deposit = int(input("\n\t Enter the amount to be deposited : Rs."))
         
+                if deposit <= 0 :
+    
+                    raise ValueError
+            
+                
+                while True:
+                
+                    try:
+                        self.PARENT.clear()
+                        print("\n\t Amount to deposit : Rs.",deposit)
+                        
+                        acc_id = input("\n\t Enter the account number to deposit : ")
+                    
+                        self.queryAccountId_type(acc_id,self.cust_id)
+                        
+                        
+                        if not self.query_id or self.query_id[0][0] is None :
+                        
+                            raise invalidAccountId
+                        
+                        
+                        print("\n\n\t Processing your request....")
+                        
+                        self.insertIntoTableTRANSACTIONS('self',acc_id,deposit)
+                        
+                        self.updateAccountBalance(acc_id, deposit)
+                        
+                        time.sleep(1)
+                        
+                        self.PARENT.clear()
+                        
+                        print("\n\n\n\t Transaction completed successfully")
+                        time.sleep(1.2)
+                        
+                        break
+                    
+                    
+                    except invalidAccountId:
+                        print("\n\n\t This account number is not owned by you....\n\t Please enter a valid account number")    
+                        time.sleep(1.2)
+                
+                break        
+                
+                
+            except ValueError:
+                print("\n\n\t Please enter a valid amount...")
+                time.sleep(1.2)
+        
+        
+        self.queryBalance(acc_id)
+        self.PARENT.clear()
+        
+        print("\n\n\t Available balance is : ",self.query_bal)
+        
+        input("\n\n\n\t press any key to continue....")
+                
+        
+        self.signInSubMenu()
         
     
+    def withDrawMoney(self):
+        
+        
+        while True :
+             
+                
+            try:    
+                self.PARENT.clear()
+                withDraw = int(input("\n\t Enter the amount to withdraw : Rs."))
+        
+                if withDraw <= 0 :
+    
+                    raise ValueError
             
+                
+                while True:
+                
+                    try:
+                        self.PARENT.clear()
+                        print("\n\t Amount to withdraw : Rs.",withDraw)
+                        
+                        acc_id = input("\n\t Enter the account number to withdraw : ")
+                    
+                        self.queryAccountId_type(acc_id,self.cust_id)
+                        
+                        
+                        if not self.query_id or self.query_id[0][0] is None :
+                        
+                            raise invalidAccountId
+                        
+                        
+                        self.queryBalance(acc_id)
+                        
+                        if self.query_id[0][1] == 'S' and self.query_bal[0][0] < withDraw :
+                            
+                            raise insufficientBalance
+                        
+                        
+                        elif (self.query_bal[0][0] - withDraw) < 5000 :
+                            
+                            raise insufficientBalance
+                        
+                        
+                        print("\n\n\t Processing your request....")
+                        
+                        self.insertIntoTableTRANSACTIONS(acc_id,'self',withDraw)
+                        
+                        self.updateAccountBalance(acc_id, -1*withDraw)
+                        
+                        time.sleep(1)
+                        
+                        self.PARENT.clear()
+                        
+                        print("\n\n\n\t Transaction completed successfully")
+                        time.sleep(1.2)
+                        
+                        break
+                    
+                    
+                    except invalidAccountId:
+                        print("\n\n\t This account number is not owned by you....\n\n\t Please enter a valid account number")    
+                        time.sleep(2)
+                    
+                    
+                    except insufficientBalance:
+                        print("\n\n\t sorry! your request cannot be processed due to insufficient balance...")
+                        time.sleep(1.5)
+                        
+                        break
+                    
+                break        
+                
+                
+            except ValueError:
+                print("\n\n\t Please enter a valid amount...")
+                time.sleep(1.2)
+        
+        
+        self.queryBalance(acc_id)
+        self.PARENT.clear()
+        
+        print("\n\n\t Available balance is : ",self.query_bal[0][0])
+        
+        input("\n\n\n\t press any key to continue....")
+                
+        
+        self.signInSubMenu()
+    
+           
             
 if __name__ == '__main__':
 
