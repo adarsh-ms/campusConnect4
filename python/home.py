@@ -4,8 +4,10 @@ import random,datetime
 
 import cx_Oracle
 
-
 import re,getpass
+
+from prettytable import PrettyTable
+
 
 
 class Error(Exception):
@@ -61,7 +63,11 @@ class insufficientBalance(Error):
 
     """Raised when account has insufficient balance"""
     
-
+class invalidDate(Error):
+    
+    """Raised when date for which account history is required is out of bounds"""
+    
+    
 
 class configuration(object):          #For initial configuration of db & clear function
     
@@ -203,10 +209,11 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
             print("table TRANSACTIONS does not exist")
                 
             self.cur.execute("""CREATE TABLE TRANSACTIONS(
+                                date_of_transaction DATE        NOT NULL,
                                 from_account_id VARCHAR2(16)    NOT NULL,
                                 to_account_id VARCHAR2(16)      NOT NULL,
                                 amount FLOAT                    NOT NULL,
-                                date_of_transaction DATE        NOT NULL)""")
+                                balance FLOAT                   NOT NULL)""")
         
         
         switchCases = {
@@ -296,19 +303,28 @@ class dbOperations(object):
         print("Table CLOSED_ACCOUNT updated successfully")
         
     
-    def insertIntoTableTRANSACTIONS(self,fID,tID,amt):
+    def insertIntoTableTRANSACTIONS(self,fID,tID,amt,bal):
         
 #         print(fID,' ',tID,' ',amt)
-        self.PARENT.cur.execute('INSERT INTO TRANSACTIONS VALUES(:from_id,:to_id,:amount,SYSDATE)',(fID,tID,amt))
+        self.PARENT.cur.execute('INSERT INTO TRANSACTIONS VALUES(SYSDATE,:from_id,:to_id,:amount,:balance)',(fID,tID,amt,bal))
         
         self.PARENT.con.commit()
         print("Table TRANSACTIONS updated successfully")
         
         
-    def selectAllFromTable(self,table):
+    def printAccountDetails(self,acc_id,from_date,to_date):
         
-        self.PARENT.cur.execute('SELECT * FROM :table_name',(table))
-    
+        self.PARENT.cur.execute("""SELECT TO_CHAR(date_of_transaction),
+                                   CASE WHEN from_account_id = :acc_id THEN 'Debit' 
+                                   WHEN to_account_id = :acc_id THEN 'Credit'
+                                   END CASE,
+                                   amount,balance 
+                                   FROM TRANSACTIONS
+                                   WHERE date_of_transaction >= :from_date AND date_of_transaction <= :to_date""",
+                                   {"acc_id":acc_id, "from_date":from_date, "to_date":to_date})
+        
+        
+        self.query_rows = self.PARENT.cur.fetchall()
     
     def customerAddressChange(self,cust_id,line1,line2,city,state,pincode):
         
@@ -400,7 +416,7 @@ class dbOperations(object):
     
         self.PARENT.cur.execute("""UPDATE CUSTOMERS
                                    SET status = 'L'
-                                   WHERE customer_id = :cust_id""",(cust_id))
+                                   WHERE customer_id = :cust_id""",{"cust_id":cust_id})
         
         self.PARENT.con.commit()
         print("Table CUSTOMER_PASSWORD updated successfully")
@@ -1104,9 +1120,12 @@ class signInMenu(dbOperations):
                             raise invalidAccountId
                         
                         
+                        self.queryBalance(acc_id)
+                        
+                        
                         print("\n\n\t Processing your request....")
                         
-                        self.insertIntoTableTRANSACTIONS('self',acc_id,deposit)
+                        self.insertIntoTableTRANSACTIONS('self',acc_id,deposit,self.query_bal[0][0]+deposit)
                         
                         self.updateAccountBalance(acc_id, deposit)
                         
@@ -1135,7 +1154,7 @@ class signInMenu(dbOperations):
         self.queryBalance(acc_id)
         self.PARENT.clear()
         
-        print("\n\n\t Available balance is : ",self.query_bal)
+        print("\n\n\t Available balance is : ",self.query_bal[0][0])
         
         input("\n\n\n\t press any key to continue....")
                 
@@ -1176,9 +1195,11 @@ class signInMenu(dbOperations):
                         
                         self.queryBalance(acc_id)
                         
-                        if self.query_id[0][1] == 'S' and self.query_bal[0][0] < withDraw :
+                        if self.query_id[0][1] == 'S' : 
                             
-                            raise insufficientBalance
+                            if self.query_bal[0][0] < withDraw :
+                            
+                                raise insufficientBalance
                         
                         
                         elif (self.query_bal[0][0] - withDraw) < 5000 :
@@ -1188,7 +1209,7 @@ class signInMenu(dbOperations):
                         
                         print("\n\n\t Processing your request....")
                         
-                        self.insertIntoTableTRANSACTIONS(acc_id,'self',withDraw)
+                        self.insertIntoTableTRANSACTIONS(acc_id,'self',withDraw,self.query_bal[0][0]-withDraw)
                         
                         self.updateAccountBalance(acc_id, -1*withDraw)
                         
@@ -1231,8 +1252,180 @@ class signInMenu(dbOperations):
         
         self.signInSubMenu()
     
-           
+    
+    
+    def printStatement(self):
+        
+        
+        curDate = self.PARENT.DATE.strftime('%d-%b-%y')
+        
+        
+        def printProcess():
             
+            
+            self.printAccountDetails(acc_id, str(fromDate), str(toDate))
+        
+            
+            printDetails = PrettyTable()
+
+            printDetails.field_names = ["Date", "Type of Transaction", "Amount", "Balance"]
+            
+            
+            
+            for i in range(0,len(self.query_rows)):
+            
+#                 for date in self.query_rows[i][0].strftime('%d-%b-%y') :
+                    
+#                     date = datetime.datetime.strptime(date, '%d-%b-%y').strftime('%d-%b-%y')
+#                     
+#                     row_list = list(self.query_rows[i])
+#                     row_list[0] = date
+                    
+#                     print(row_list)
+                    printDetails.add_row(self.query_rows[i])
+                    
+            
+            self.PARENT.clear()
+            
+            print(printDetails)
+        
+        
+        
+        while True :
+            
+            try:
+                self.PARENT.clear()
+                acc_id = input("\n\t Enter the account number : ")
+                    
+                self.queryAccountId_type(acc_id,self.cust_id)
+                        
+                        
+                if not self.query_id or self.query_id[0][0] is None :
+                        
+                    raise invalidAccountId
+        
+                
+                while True :
+                
+                    try:
+                        self.PARENT.clear()
+                        print("\n\n\t Account number : ",acc_id)
+                        print("\n\n\t Enter the period for which account history is required : ")
+                        
+                        print("\n\t from (dd mm yy) - ")
+                        fromDay = int(input("\n\t\t day     : "))
+                        fromMonth = int(input("\n\t\t month : "))
+                        fromYear = int(input("\n\t\t year   : "))
+                        
+                        
+                        fromDate = str(fromYear)+'-'+str(fromMonth)+'-'+str(fromDay)
+                        
+                        if len(str(fromYear)) == 2 :
+                            
+                            fromDate = datetime.datetime.strptime(fromDate, '%y-%m-%d').strftime('%d-%b-%y')
+                            
+                        
+                        elif len(str(fromYear)) == 4 :
+                            
+                            fromDate = datetime.datetime.strptime(fromDate, '%Y-%m-%d').strftime('%d-%b-%y')
+                            
+                        
+                        
+                        if fromDate > curDate :
+                            
+                            raise invalidDate
+                        
+                        
+                        
+                        while True :
+                        
+                            try:
+                                self.PARENT.clear()
+                                print("\n\n\t Account number : ",acc_id)
+                                print("\n\n\t Enter the period for which account history is required : ")
+                                
+                                print("\n\t from (dd mm yy) : ",fromDate)
+                                
+                                
+                                print("\n\t to (dd mm yy) - ")
+                                toDay = int(input("\n\t\t day : "))
+                                toMonth = int(input("\n\t\t month : "))
+                                toYear = int(input("\n\t\t year : "))
+                        
+                                
+                                toDate = str(toYear)+'-'+str(toMonth)+'-'+str(toDay)
+                        
+                                if len(str(toYear)) == 2 :
+                                    
+                                    toDate = datetime.datetime.strptime(toDate, '%y-%m-%d').strftime('%d-%b-%y')
+                                    
+                                
+                                elif len(str(toYear)) == 4 :
+                                    
+                                    toDate = datetime.datetime.strptime(toDate, '%Y-%m-%d').strftime('%d-%b-%y')
+                                
+                                
+#                                 print (toDate)
+                                time.sleep(2)
+                                
+                                if toDate < fromDate :
+                                    
+                                    raise invalidDate
+                                
+                                
+                                elif toDate > curDate :
+                                    
+                                    raise ValueError
+                                
+                                
+                                printProcess()
+                                
+                                
+                                break
+                                
+                            
+                            except invalidDate:
+                                print("\n\n\t Please ensure that to-date is ahead of from-date")
+                                time.sleep(1.5)
+                            
+                            
+                            
+                            except ValueError:
+                                print("\n\n\t Please enter a valid date")
+                                time.sleep(1.2)
+                                 
+                        
+                        
+                        break
+                        
+                    
+                    except ValueError:
+                        print("\n\n\t Please enter a valid date")
+                        time.sleep(1.2)
+                        
+                    
+                    except invalidDate:
+                        print("\n\n\t Sorry! no transactions were made from this date")
+                        time.sleep(1.5)
+            
+                
+                break
+                
+                
+            except invalidAccountId:
+                print("\n\n\t This account number is not owned by you....\n\n\t Please enter a valid account number")    
+                time.sleep(2)
+                
+            
+        
+        time.sleep(1)
+        input("press any key to go back....")
+                    
+        
+        self.signInSubMenu()
+        
+                
+                
 if __name__ == '__main__':
 
     
