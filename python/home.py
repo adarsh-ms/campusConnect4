@@ -51,6 +51,12 @@ class invalidCustomerId(Error):
     
     """Raised when input customer id doesn't exist"""    
 
+
+class lockedAccountError(Error):
+    
+    """Raised when input customer id is locked due to invalid login attempts"""
+
+
     
 
 class configuration(object):          #For initial configuration of db & clear function
@@ -153,6 +159,7 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
                                 city VARCHAR2(20)                NOT NULL,
                                 state VARCHAR2(20)               NOT NULL,
                                 pincode NUMBER                   NOT NULL,
+                                status VARCHAR2(2)                DEFAULT 'A',
                                 date_of_sign_up DATE             DEFAULT (SYSDATE),
                                 PRIMARY KEY (customer_id))""")
         
@@ -166,7 +173,6 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
                                 account_type VARCHAR2(4)    NOT NULL,
                                 main_balance FLOAT          NOT NULL,
                                 date_created DATE           DEFAULT (SYSDATE),
-                                status VARCHAR(2)           DEFAULT 'A',
                                 PRIMARY KEY (account_id),
                                 FOREIGN KEY (customer_id) REFERENCES CUSTOMERS(customer_id))""")
             
@@ -255,7 +261,7 @@ class dbOperations(object):
     def insertIntoTableCUSTOMERS(self,cust_id,fName,lName,line1,line2,city,state,pin):
         
         self.PARENT.cur.execute("""INSERT INTO CUSTOMERS 
-                                 VALUES(:cust_id,:fName,:lName,:line1,:line2,:state,:city,:pinCode,SYSDATE)""",
+                                 VALUES(:cust_id,:fName,:lName,:line1,:line2,:state,:city,:pinCode,'A',SYSDATE)""",
                                  (cust_id,fName,lName,line1,line2,city,state,pin))
         
         self.PARENT.con.commit()
@@ -264,7 +270,7 @@ class dbOperations(object):
     
     def insertIntoTableACCOUNTS(self,cID,aID,acc_type,bal):
         
-        self.PARENT.cur.execute("INSERT INTO ACCOUNTS VALUES(:cust_id,:acc_id,:acc_type,:balance,SYSDATE,'A')",(cID,aID,acc_type,bal))
+        self.PARENT.cur.execute("INSERT INTO ACCOUNTS VALUES(:cust_id,:acc_id,:acc_type,:balance,SYSDATE)",(cID,aID,acc_type,bal))
         
         self.PARENT.con.commit()
         print("Table ACCOUNTS updated successfully")
@@ -281,6 +287,7 @@ class dbOperations(object):
     def insertIntoTableCLOSED_ACCOUNT(self,cust_id):
         
         self.PARENT.cur.execute('INSERT INTO CLOSED_ACCOUNT VALUES(:cust_id)',(cust_id))
+        
         self.PARENT.con.commit()
         print("Table CLOSED_ACCOUNT updated successfully")
         
@@ -332,7 +339,7 @@ class dbOperations(object):
         self.lastId = self.PARENT.cur.fetchall()
         print(self.lastId)
         
-        if not self.lastId :
+        if self.lastId[0][0] is None or not self.lastId:
             
             self.cust_id = "C"+"001"+"R"
             print(self.cust_id)
@@ -355,7 +362,7 @@ class dbOperations(object):
         self.lastId = self.PARENT.cur.fetchall()
         print(self.lastId[0][0])
         
-        if self.lastId[0][0] is None :
+        if self.lastId[0][0] is None or not self.lastId:
             
             if acc_type == 'C':
             
@@ -364,7 +371,7 @@ class dbOperations(object):
         
             elif acc_type == 'S' :
              
-                self.accountId = str("SA")+str(random.randint(0,999999999999))+str("IN")
+                self.accountId = str("SA")+str(random.randint(0,9999999999))+str("IN")
                 print(self.accountId)
             
         else :    
@@ -374,14 +381,24 @@ class dbOperations(object):
             
             if acc_type == "C" :
                 
-                self.accountId = 'CA'+self.accountId+'IN'
+                self.accountId = 'CA'+str(self.accountId)+'IN'
             
             else :
                 
-                self.accountId = 'SA'+self.accountId+'IN'
+                self.accountId = 'SA'+str(self.accountId)+'IN'
             
             print(self.cust_id)
         
+    
+    def lockAccount(self,cust_id):
+    
+    
+        self.PARENT.cur.execute("""UPDATE CUSTOMERS
+                                   SET status = 'L'
+                                   WHERE customer_id = :cust_id""",(cust_id))
+        
+        self.PARENT.con.commit()
+        print("Table CUSTOMER_PASSWORD updated successfully")
     
                 
 
@@ -449,10 +466,14 @@ class mainMenu(object):
         self.PARENT.con.close()
         self.PARENT.clear()
         
-        print("\n\n\n\t\tQuitting application......")
+        print("\n\n\n\t\tThank you for using our services......")
         time.sleep(1)
-        
         self.PARENT.clear()
+        
+        print("\n\n\n\t\tVisit again......")
+        time.sleep(1)
+        self.PARENT.clear()
+        
         exit()
     
 
@@ -684,6 +705,10 @@ class signUpMenu(dbOperations) :
             self.saveCustomerPassword()
             
             print("\n\n\t Your password has been successfully updated !")
+            time.sleep(1.2)
+            
+            
+            mainMenu(self.PARENT)
             
   
     def saveCustomerCredentials(self):
@@ -809,9 +834,9 @@ class signInMenu(dbOperations):
             try:    
                 self.PARENT.clear()
                 
-                self.cust_id = input("\n\t username/customer-id : ")
+                self.cust_id = input("\n\t username/customer-id : ").upper()
                 
-                self.PARENT.cur.execute("""SELECT customer_id
+                self.PARENT.cur.execute("""SELECT customer_id,status
                                            FROM CUSTOMER_PASSWORD
                                            WHERE customer_id = :cust_id""",{"cust_id" : self.cust_id})
         
@@ -822,6 +847,11 @@ class signInMenu(dbOperations):
                 if not query_id :
                     
                     raise invalidCustomerId
+                
+                
+                elif query_id[0][1] == 'L' :
+                    
+                    raise lockedAccountError
                 
                 
                 while turns < 3 :
@@ -858,6 +888,12 @@ class signInMenu(dbOperations):
             except invalidCustomerId:
                 print("\n\n\t There is no user registered with this id.\n\t Please enter a valid id....")
                 time.sleep(1.2)
+            
+            
+            except lockedAccountError:
+                print("\n\n\t This Account is locked.\n\t Please contact administrator to unlock....")
+                time.sleep(1.2)
+            
                 
         
         if turns < 3 :
@@ -871,7 +907,10 @@ class signInMenu(dbOperations):
         
         else :
             
+            self.lockAccount(self.cust_id)
+            
             self.PARENT.clear()
+            
             print("\n\n\n\t Sorry! Too many incorrect login attempts..\n\n\t Your account is locked..")
             exit()
             
@@ -993,6 +1032,14 @@ class signInMenu(dbOperations):
         
         self.signInSubMenu()
             
+    
+    
+#     def depositMoney(self):
+#         
+#         
+        
+        
+    
             
             
 if __name__ == '__main__':

@@ -22,3 +22,7 @@ class test(unittest.TestCase):
     object = home.signInMenu(home.configuration())
     object.addressChange()
     
+    
+    
+    
+ UPDATE CUSTOMERS SET 'address_line1' = 'aaaaaa','address_line2' = 'aaaaaaaaaaa','city' = 'aaaaaaaaaaaaa','state' = 'aaaaaaaa','pincode' = 123456,WHERE customer_id = 'C001R'   
