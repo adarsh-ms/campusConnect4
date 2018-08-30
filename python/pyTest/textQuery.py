@@ -42,50 +42,64 @@ cur = con.cursor()
 # print(x)
 
 import datetime
-
+ 
 from prettytable import PrettyTable
-
+ 
 # print("\n\t from (dd mm yy) - ")
 # fromDay = int(input("\n\t\t day     : "))
 # fromMonth = int(input("\n\t\t month : "))
 # fromYear = int(input("\n\t\t year   : "))
 # 
-fromDate = '18-08-08'
-fromDate = datetime.datetime.strptime(fromDate, '%y-%m-%d').strftime('%y-%b-%d')
-# 
+# fromDate = '18-08-08'
+# fromDate = datetime.datetime.strptime(fromDate, '%y-%m-%d').strftime('%y-%b-%d')
+#  
 # print("\n\t to (dd mm yy) - ")
 # toDay = int(input("\n\t\t day : "))
 # toMonth = int(input("\n\t\t month : "))
 # toYear = int(input("\n\t\t year : "))
-# 
-toDate = '18-08-28'
-toDate = datetime.datetime.strptime(toDate, '%y-%m-%d').strftime('%y-%b-%d')
-
-
+#  
+# toDate = '18-08-28'
+# toDate = datetime.datetime.strptime(toDate, '%y-%m-%d').strftime('%y-%b-%d')
+ 
+ 
 cur.execute("""SELECT TO_CHAR(date_of_transaction),
-                      CASE WHEN from_account_id = 'CA7300877646IN' THEN 'Debit' 
-                           WHEN to_account_id = 'CA7300877646IN' THEN 'Credit'
-                           END CASE,
-                      amount,balance 
-                      FROM TRANSACTIONS
-                      WHERE date_of_transaction >= '28-AUG-18' AND date_of_transaction <= '29-AUG-18'""")
+                                   CASE WHEN from_account_id = 'CA7300877646IN' THEN 'Debit' 
+                                        WHEN to_account_id = 'CA7300877646IN' THEN 'Credit'
+                                   END CASE,
+                                   amount,
+                                   CASE WHEN  from_account_id = 'CA7300877646IN' THEN balance_from
+                                        WHEN to_account_id = 'CA7300877646IN' THEN balance_to
+                                   END CASE
+                                   FROM TRANSACTIONS
+                                   WHERE TRUNC(date_of_transaction) >= '30-AUG-18' AND TRUNC(date_of_transaction) <= '30-AUG-18'""")
 query_rows = cur.fetchall()
-
+ 
 print(query_rows,len(query_rows))
 printDetails = PrettyTable()
-
+ 
 printDetails.field_names = ["Date", "Type of Transaction", "Amount", "Balance"]
-
+ 
 for i in range(0,len(query_rows)):
-            
+             
 #                 for row_list in query_rows[i] :
-                    
+                     
 #                     date = datetime.datetime.strptime(date, '%d-%b-%y').strftime('%d-%b-%y')
 #                     
 #                     row_list = list(query_rows[i])
 #                     row_list[0] = date
-                    
+                     
 #                     print(row_list)
                     printDetails.add_row(query_rows[i])
-                    
+                     
 print(printDetails)
+
+
+
+
+# cur.execute("""INSERT INTO CLOSED_ACCOUNTS (customer_id,account_id,account_type,date_of_closure)
+#                                    SELECT customer_id,account_id,account_type,SYSDATE FROM ACCOUNTS WHERE account_id = :acc_id""",{"acc_id":'SA108772323354IN'})
+#         
+#         
+# cur.execute("DELETE FROM ACCOUNTS WHERE account_id = :acc_id",{"acc_id":'SA108772323354IN'})
+# 
+# con.commit()

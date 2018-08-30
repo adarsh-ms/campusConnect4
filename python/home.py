@@ -67,6 +67,11 @@ class invalidDate(Error):
     
     """Raised when date for which account history is required is out of bounds"""
     
+
+class transactionError(Error):
+    
+    """Raised when balance is not updated correctly during transfer"""
+
     
 
 class configuration(object):          #For initial configuration of db & clear function
@@ -111,18 +116,19 @@ class configuration(object):          #For initial configuration of db & clear f
             print(os.environ.get('LD_LIBRARY_PATH'))
         
     
+    def dbStart(self):          #To connect to database
+        
+        self.con = cx_Oracle.connect('{0}/{1}'.format(self.id,self.passwd))   #To connect to database with user_name:$id & password:$passwd
+        self.cur = self.con.cursor()
+    
+    
     def dbCredentials(self):        #To prompt user for database login credentials
         
         self.id = input('\n Enter your username for database : ')
         self.passwd = input('\n Enter your password for database : ')
         self.dbStart()
-    
-    
-    def dbStart(self):          #To connect to database
         
-        self.con = cx_Oracle.connect('{0}/{1}'.format(self.id,self.passwd))   #To connect to database with user_name:$id & password:$passwd
-        self.cur = self.con.cursor()
-        
+    
     
     def dbStop(self):
         
@@ -201,7 +207,9 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
             print("table CLOSED_ACCOUNTS does not exist")
                 
             self.cur.execute("""CREATE TABLE CLOSED_ACCOUNTS(
-                                account_id VARCHAR2(16)    NOT NULL UNIQUE,
+                                customer_id VARCHAR2(12)    NOT NULL,
+                                account_id VARCHAR2(16)     NOT NULL UNIQUE,
+                                account_type VARCHAR2(4)    NOT NULL,
                                 date_of_closure DATE       NOT NULL)""")
             
         def CREATE_TABLE_TRANSACTIONS():        #For creating relation TRANSACTIONS if it doesn't exist
@@ -213,7 +221,8 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
                                 from_account_id VARCHAR2(16)    NOT NULL,
                                 to_account_id VARCHAR2(16)      NOT NULL,
                                 amount FLOAT                    NOT NULL,
-                                balance FLOAT                   NOT NULL)""")
+                                balance_from FLOAT,
+                                balance_to FLOAT)""")
         
         
         switchCases = {
@@ -303,10 +312,27 @@ class dbOperations(object):
         print("Table CLOSED_ACCOUNT updated successfully")
         
     
-    def insertIntoTableTRANSACTIONS(self,fID,tID,amt,bal):
+    def insertIntoTableTRANSACTIONS(self,fID,tID,amt,bal1,bal2):
         
 #         print(fID,' ',tID,' ',amt)
-        self.PARENT.cur.execute('INSERT INTO TRANSACTIONS VALUES(SYSDATE,:from_id,:to_id,:amount,:balance)',(fID,tID,amt,bal))
+
+        if bal1 == 'pass' :
+        
+            self.PARENT.cur.execute("""INSERT INTO TRANSACTIONS(date_of_transaction,from_account_id,to_account_id,amount,balance_to) 
+                                       VALUES(SYSDATE,:from_id,:to_id,:amount,:bal_to)""",(fID,tID,amt,bal2))
+        
+        
+        elif bal2 == 'pass' :
+        
+            self.PARENT.cur.execute("""INSERT INTO TRANSACTIONS(date_of_transaction,from_account_id,to_account_id,amount,balance_from) 
+                                       VALUES(SYSDATE,:from_id,:to_id,:amount,:bal_from)""",(fID,tID,amt,bal1))
+        
+        
+        else :
+            
+            self.PARENT.cur.execute('INSERT INTO TRANSACTIONS VALUES(SYSDATE,:from_id,:to_id,:amount,:bal_from,:bal_to)',(fID,tID,amt,bal1,bal2))
+        
+        
         
         self.PARENT.con.commit()
         print("Table TRANSACTIONS updated successfully")
@@ -316,11 +342,14 @@ class dbOperations(object):
         
         self.PARENT.cur.execute("""SELECT TO_CHAR(date_of_transaction),
                                    CASE WHEN from_account_id = :acc_id THEN 'Debit' 
-                                   WHEN to_account_id = :acc_id THEN 'Credit'
+                                        WHEN to_account_id = :acc_id THEN 'Credit'
                                    END CASE,
-                                   amount,balance 
+                                   amount,
+                                   CASE WHEN  from_account_id = :acc_id THEN balance_from
+                                        WHEN to_account_id = :acc_id THEN balance_to
+                                   END CASE
                                    FROM TRANSACTIONS
-                                   WHERE date_of_transaction >= :from_date AND date_of_transaction <= :to_date""",
+                                   WHERE TRUNC(date_of_transaction) >= :from_date AND TRUNC(date_of_transaction) <= :to_date""",
                                    {"acc_id":acc_id, "from_date":from_date, "to_date":to_date})
         
         
@@ -423,14 +452,29 @@ class dbOperations(object):
     
     
     
-    def queryAccountId_type(self,acc_id,cust_id):
+    def queryAccountIdAndtype(self,acc_id,cust_id):
         
-        self.PARENT.cur.execute("""SELECT account_id,account_type
-                                   FROM ACCOUNTS
-                                   WHERE account_id = :acc_id AND customer_id = :cust_id""",(acc_id,cust_id))
+        
+        if cust_id == 'pass' :
+        
+            
+            self.PARENT.cur.execute("""SELECT account_id
+                                       FROM ACCOUNTS
+                                       WHERE account_id = :acc_id""",{"acc_id":acc_id})
+            
+            self.id = self.PARENT.cur.fetchall()
+            
+        
+        else :
+        
+            self.PARENT.cur.execute("""SELECT account_id,account_type
+                                       FROM ACCOUNTS
+                                       WHERE account_id = :acc_id AND customer_id = :cust_id""",{"acc_id":acc_id,"cust_id":cust_id})
+        
+        
+        
     
-    
-        self.query_id = self.PARENT.cur.fetchall()
+            self.query_id = self.PARENT.cur.fetchall()
         
         
     
@@ -454,6 +498,28 @@ class dbOperations(object):
         self.query_bal = self.PARENT.cur.fetchall()
         
     
+    def closeAccountQuery(self,acc_id):
+        
+        
+        self.PARENT.clear()
+        print("\n\n\t processing  your request..")
+        
+        
+        self.PARENT.cur.execute("""INSERT INTO CLOSED_ACCOUNTS
+                                   SELECT customer_id,account_id,account_type,SYSDATE FROM ACCOUNTS WHERE account_id = :acc_id""",
+                                   {"acc_id":acc_id})
+        
+        time.sleep(0.5)
+        
+        
+        self.PARENT.cur.execute("DELETE FROM ACCOUNTS WHERE account_id = :acc_id",{"acc_id":acc_id})
+        
+        self.PARENT.clear()
+        print("\n\n\t Please wait...")
+        
+        self.PARENT.con.commit()
+        time.sleep(1)
+        
         
         
 
@@ -1112,7 +1178,7 @@ class signInMenu(dbOperations):
                         
                         acc_id = input("\n\t Enter the account number to deposit : ")
                     
-                        self.queryAccountId_type(acc_id,self.cust_id)
+                        self.queryAccountIdAndtype(acc_id,self.cust_id)
                         
                         
                         if not self.query_id or self.query_id[0][0] is None :
@@ -1125,7 +1191,7 @@ class signInMenu(dbOperations):
                         
                         print("\n\n\t Processing your request....")
                         
-                        self.insertIntoTableTRANSACTIONS('self',acc_id,deposit,self.query_bal[0][0]+deposit)
+                        self.insertIntoTableTRANSACTIONS('self',acc_id,deposit,'pass',self.query_bal[0][0]+deposit)
                         
                         self.updateAccountBalance(acc_id, deposit)
                         
@@ -1185,7 +1251,7 @@ class signInMenu(dbOperations):
                         
                         acc_id = input("\n\t Enter the account number to withdraw : ")
                     
-                        self.queryAccountId_type(acc_id,self.cust_id)
+                        self.queryAccountIdAndtype(acc_id,self.cust_id)
                         
                         
                         if not self.query_id or self.query_id[0][0] is None :
@@ -1209,7 +1275,7 @@ class signInMenu(dbOperations):
                         
                         print("\n\n\t Processing your request....")
                         
-                        self.insertIntoTableTRANSACTIONS(acc_id,'self',withDraw,self.query_bal[0][0]-withDraw)
+                        self.insertIntoTableTRANSACTIONS(acc_id,'self',withDraw,self.query_bal[0][0]-withDraw,'pass')
                         
                         self.updateAccountBalance(acc_id, -1*withDraw)
                         
@@ -1281,7 +1347,7 @@ class signInMenu(dbOperations):
 #                     row_list = list(self.query_rows[i])
 #                     row_list[0] = date
                     
-#                     print(row_list)
+#                     print(self.query_rows[i])
                     printDetails.add_row(self.query_rows[i])
                     
             
@@ -1297,7 +1363,7 @@ class signInMenu(dbOperations):
                 self.PARENT.clear()
                 acc_id = input("\n\t Enter the account number : ")
                     
-                self.queryAccountId_type(acc_id,self.cust_id)
+                self.queryAccountIdAndtype(acc_id,self.cust_id)
                         
                         
                 if not self.query_id or self.query_id[0][0] is None :
@@ -1424,6 +1490,231 @@ class signInMenu(dbOperations):
         
         self.signInSubMenu()
         
+    
+    
+    def moneyTransfer(self):
+        
+        
+        while True :
+            
+            try:
+                self.PARENT.clear()
+                
+                fromAccId = input("Enter your account number for transaction : ")
+                
+                self.queryAccountIdAndtype(fromAccId, self.cust_id)
+                
+                
+                if not self.query_id or self.query_id[0][0] is None :
+                    
+                    raise invalidAccountId
+                
+                
+                while True :
+                    
+                    try:
+                        self.PARENT.clear()
+                        toAccId = input("Enter the account number for transfer: ")
+                        
+                        
+                        self.queryAccountIdAndtype(toAccId, 'pass')
+                        
+                        
+                        if not self.id or self.id[0][0] is None :
+                            
+                            raise invalidAccountId 
+                        
+                        
+                        if self.id[0][0] == fromAccId :
+                            
+                            raise invalidAccountId
+                        
+                        
+                        while True :
+                            
+                            try:
+                                self.PARENT.clear()
+                                amount = int(input("Amount to transfer : Rs. "))
+                                
+                                self.queryBalance(fromAccId)
+                                oldBal_from = self.query_bal[0][0]
+                                
+                                
+                                self.queryBalance(toAccId)
+                                oldBal_to = self.query_bal[0][0]
+                                
+                                
+                                if ((self.query_id[0][1] == 'C') and (oldBal_from - amount < 5000)) :
+                                
+                                    raise insufficientBalance
+                                
+                                
+                                elif oldBal_from < amount :
+                                
+                                    raise insufficientBalance
+                        
+                                
+                                decision = input("\n\n\t Do you wish to continue ? [y/n] ")
+                                
+                                if decision.upper() == 'Y' :
+                                    
+                                    self.PARENT.clear()
+                                    
+                                    print("\n\n\t Processign your request....")
+                                    self.updateAccountBalance(fromAccId, -1*amount)
+                                    time.sleep(1)
+                                    
+                                    self.PARENT.clear()
+                                    print("\n\n\t Initiating transactions....")
+                                    
+                                    self.updateAccountBalance(toAccId, amount)
+                                    time.sleep(1)
+                                    
+                                    self.PARENT.clear()
+                                    print("\n\n\t This may take a moment....")
+                                    
+                                    self.queryBalance(fromAccId)
+                                    newBal = self.query_bal[0][0]
+                                    self.queryBalance(toAccId)
+                                    
+                                    if ((newBal != oldBal_from - amount) or (self.query_bal[0][0] != oldBal_to + amount)) :
+                                        
+                                        self.updateAccountBalance(fromAccId, oldBal_from)
+                                        self.updateAccountBalance(toAccId, oldBal_to)
+                                        
+                                        raise transactionError
+                                    
+                                    
+                                    self.insertIntoTableTRANSACTIONS(fromAccId, toAccId, amount, newBal, self.query_bal[0][0])
+                                    time.sleep(1)
+                                    
+                                    
+                                    
+                                    self.PARENT.clear()
+                                    print("\n\n\t Transaction completed successfully")
+                                    
+                                    input("\n\n\n\t Press any key to continue...")
+                                    
+                                break
+                            
+                            
+                            except ValueError:
+                                print("\n\n\t Please enter a valid amount...")
+                                time.sleep(1.2)
+                            
+                            except insufficientBalance:
+                                print("\n\n\t sorry! your request cannot be processed due to insufficient balance...")
+                                time.sleep(1.5)
+                            
+                            
+                            except transactionError:
+                                self.PARENT.clear()
+                                print("\n\n\t An error occured...Please try again later")
+                                time.sleep(2)
+                                break
+                                
+                                
+                        break
+            
+                    except invalidAccountId:
+                        print("\n\n\t This account doesn't exist....\n\t Please enter a valid account number")
+                        time.sleep(2)
+                        
+                
+                
+                break        
+                        
+                        
+            except invalidAccountId:
+                print("\n\n\t This account number is not owned by you....\n\n\t Please enter a valid account number")    
+                time.sleep(2)    
+                
+    
+        
+        self.signInSubMenu()
+        
+    
+    def closeAccount(self):
+        
+        
+        while True:
+                
+                    try:
+                        self.PARENT.clear()
+
+                        acc_id = input("\n\t Enter the account number to be closed : ")
+                    
+                        self.queryAccountIdAndtype(acc_id,self.cust_id)
+                        
+                        
+                        if not self.query_id or self.query_id[0][0] is None :
+                        
+                            raise invalidAccountId
+                        
+                        
+                        self.queryBalance(acc_id)
+                        
+                        
+                        break
+                    
+                    
+                    except invalidAccountId:
+                        print("\n\n\t This account number is not owned by you....\n\t Please enter a valid account number")    
+                        time.sleep(1.2)
+                    
+                    
+        print("\n\n\n\t Querying account balance..... Please wait.....")
+        time.sleep(1.2)
+        
+        self.PARENT.clear()
+        print("\n\n\n\t Your Account has a net balance of Rs.",self.query_bal[0][0])
+        
+        decision = input("\n\n\t Do you wish to continue ? [y/n] ")
+        
+        
+        if decision.upper() == 'Y' :
+            
+            
+            self.PARENT.cur.execute("""SELECT address_line1,address_line2,city,state,pincode
+                                   FROM CUSTOMERS
+                                   WHERE customer_id = :cust_id""",{"cust_id":self.cust_id})
+         
+            query_address = self.PARENT.cur.fetchall()
+            
+            self.PARENT.clear()
+            print("""\n\n\t Your net balance of amount Rs. {0} will be sent to the below address \n\t as early as possible : 
+                     \n\n\t Line 1 : {1}
+                     \n\t Line2 : {2}
+                     \n\t City : {3}
+                     \n\t State : {4}
+                     \n\t Pincode : {5}"""
+                     .format(self.query_bal[0][0],query_address[0][0],query_address[0][1],query_address[0][2],query_address[0][3],query_address[0][4]))
+            
+            input("\n\n\t press any key to confrim...")
+        
+            self.closeAccountQuery(acc_id)
+            time.sleep(0.5)
+          
+                      
+            self.PARENT.clear()
+            print("\n\n\t Account deleted successfully..")
+            
+            input("\n\n\n\t Press any key to continue.")
+            
+            
+        self.signInSubMenu()
+        
+        
+    
+    
+    def customerLogout(self):
+        
+        self.PARENT.clear()
+        print("\n\n\n\t Logging you out....")
+        time.sleep(1.2)
+        
+        mainMenu(self.PARENT)
+    
                 
                 
 if __name__ == '__main__':
