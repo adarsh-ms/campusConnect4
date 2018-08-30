@@ -72,6 +72,11 @@ class transactionError(Error):
     
     """Raised when balance is not updated correctly during transfer"""
 
+
+class invalidAdmin(Error):
+    
+    """Raised when a non admin sign in is detected"""
+    
     
 
 class configuration(object):          #For initial configuration of db & clear function
@@ -157,7 +162,7 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
     def createTables(self):          #To check if CUSTOMERS table already exits or not & if not, create the table
         
         
-        self.cur.execute("SELECT table_name FROM all_tables WHERE table_name IN ('CUSTOMERS','ACCOUNTS','CUSTOMER_PASSWORD','CLOSED_ACCOUNTS','TRANSACTIONS')") #Returns the name of tables if they are present in the database
+        self.cur.execute("SELECT table_name FROM all_tables WHERE table_name IN ('CUSTOMERS','ACCOUNTS','CUSTOMER_PASSWORD','CLOSED_ACCOUNTS','TRANSACTIONS','ADMINS')") #Returns the name of tables if they are present in the database
 
         table_tuple = self.cur.fetchall()   #Returns a list of tuples of relations
         print(table_tuple)
@@ -212,6 +217,7 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
                                 account_type VARCHAR2(4)    NOT NULL,
                                 date_of_closure DATE       NOT NULL)""")
             
+        
         def CREATE_TABLE_TRANSACTIONS():        #For creating relation TRANSACTIONS if it doesn't exist
             
             print("table TRANSACTIONS does not exist")
@@ -225,6 +231,18 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
                                 balance_to FLOAT)""")
         
         
+        def CREATE_TABLE_ADMINS():        #For creating relation TRANSACTIONS if it doesn't exist
+            
+            print("table ADMINS does not exist")
+                
+            self.cur.execute("""CREATE TABLE ADMINS(
+                                admin_id VARCHAR2(10),
+                                fname VARCHAR2(30),
+                                lname VARCHAR2(30),
+                                password VARCHAR2(30),
+                                PRIMARY KEY (admin_id))""")
+        
+        
         switchCases = {
                 
                 'CUSTOMERS'         : CREATE_TABLE_CUSTOMERS,
@@ -235,12 +253,14 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
                 
                 'CLOSED_ACCOUNTS'   : CREATE_TABLE_CLOSED_ACCOUNTS,
                 
-                'TRANSACTIONS'      : CREATE_TABLE_TRANSACTIONS 
+                'TRANSACTIONS'      : CREATE_TABLE_TRANSACTIONS,
+                
+                'ADMINS'            : CREATE_TABLE_ADMINS
             
             }
             
         
-        table_list = ['CUSTOMERS','ACCOUNTS','CUSTOMER_PASSWORD','CLOSED_ACCOUNTS','TRANSACTIONS']
+        table_list = ['CUSTOMERS','ACCOUNTS','CUSTOMER_PASSWORD','CLOSED_ACCOUNTS','TRANSACTIONS','ADMINS']
         
         for i in range(0,len(table_tuple)):
              
@@ -260,9 +280,9 @@ class tableConfiguration (configuration):         #Table for storing aacount no,
         
         
         #To check if all required relations are configured
-        self.cur.execute("SELECT table_name FROM all_tables WHERE table_name IN ('CUSTOMERS','ACCOUNTS','CUSTOMER_PASSWORD','CLOSED_ACCOUNTS','TRANSACTIONS')")
+        self.cur.execute("SELECT table_name FROM all_tables WHERE table_name IN ('CUSTOMERS','ACCOUNTS','CUSTOMER_PASSWORD','CLOSED_ACCOUNTS','TRANSACTIONS','ADMINS')")
         
-        if len(self.cur.fetchall()) != 5 :
+        if len(self.cur.fetchall()) != 6 :
             
             
             print("\n\tYour database is not correctly configured.Some relations are missing.\n\n\tPlease check your database configuration and try again.....")
@@ -336,7 +356,7 @@ class dbOperations(object):
         
         self.PARENT.con.commit()
         print("Table TRANSACTIONS updated successfully")
-        
+    
         
     def printAccountDetails(self,acc_id,from_date,to_date):
         
@@ -519,6 +539,27 @@ class dbOperations(object):
         
         self.PARENT.con.commit()
         time.sleep(1)
+        
+        
+
+    def queryAdmin(self,adm_id):
+            
+            self.PARENT.cur.execute("""SELECT admin_id,password
+                                       FROM ADMINS
+                                       WHERE admin_id = :adm_id""",{"adm_id":adm_id})
+        
+        
+            self.query_admin = self.PARENT.cur.fetchall()
+
+    
+    
+    def printClosedAccountsQuery(self):
+        
+        self.PARENT.cur.execute("""SELECT account_id,TO_CHAR(date_of_closure)
+                                   FROM CLOSED_ACCOUNTS""")
+        
+        
+        self.query_rows = self.PARENT.cur.fetchall()
         
         
         
@@ -1715,7 +1756,146 @@ class signInMenu(dbOperations):
         
         mainMenu(self.PARENT)
     
+
+
+
+class adminSignInMenu(dbOperations):
+
+
+    
+    def __init__(self,parent):
+        
+        
+        self.PARENT = parent
+        
+        super().__init__(self.PARENT)
+        
+        
+        self.promptCredentials()
+        
+        
+    def promptCredentials(self):
+        
+        while True :
+            
+            try:
+                self.PARENT.clear()
+                admId = input("\n\n\t Admin id : ").upper()
+        
                 
+                self.queryAdmin(admId)
+                
+                if not self.query_admin or self.query_admin[0][0] is None :
+                    
+                    raise invalidAdmin
+                
+                
+                while True :
+                    
+                    try:
+                        self.PARENT.clear()
+                        print("\n\n\t Admin id : ",admId)
+                        
+                        passwd = input("\n\t Password : ")
+                
+                        
+                        if passwd != self.query_admin[0][1] :
+                            
+                            raise invalidCredentials
+                    
+                    
+                        break
+                    
+                    except invalidCredentials:
+                        print("\n\n\t Username or Password doesn't match")
+                        time.sleep(1.2)
+                    
+                    
+                break
+                
+            except invalidAdmin:
+                print("\n\n\t You are not an admin")
+                time.sleep(1.2)    
+                
+        
+        self.PARENT.clear()
+        print("\n\t Authorizing access....")
+        time.sleep(1)
+        
+        self.subMenu()
+        
+        
+        
+    def subMenu(self):
+        
+        
+        self.PARENT.clear()
+        
+        print("""\n\n\n\n\t 1. Print closed account history
+                 \n\n\n\n\t 2. Logout""")
+        
+        choice = input("\n\n\t Enter your choice : ")
+        
+        
+        if choice == '1' :
+            
+            self.printClosedAccounts()
+        
+        
+        elif choice == '2':
+        
+            self.logout()
+        
+        
+        else :
+            
+            print("\n\n\t Invalid choice....Please try again...")
+            time.sleep(1.2)
+            
+            self.subMenu()
+            
+        
+    
+    def printClosedAccounts(self):
+    
+        self.PARENT.clear()
+        
+        self.printClosedAccountsQuery()
+        
+        
+        printDetails = PrettyTable()
+        
+        printDetails.field_names = ["Account id", "Date"]
+        
+        
+        for i in range(0,len(self.query_rows)) :
+            
+            
+            printDetails.add_row(self.query_rows[i])
+        
+        
+        
+        print(printDetails)
+        
+        
+        input("\n\n press any key to continue...")
+        
+        
+        self.subMenu()
+        
+    
+    def logout(self):
+        
+        self.PARENT.clear()
+        
+        print("\n\n\t Process initiated...")
+        time.sleep(1.2)
+        
+        mainMenu(self.PARENT)
+        
+    
+    
+    
                 
 if __name__ == '__main__':
 
